@@ -1,0 +1,733 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>UDS Tracker - Rep</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#f2ede6;--card:#faf7f3;--card-border:#e0d8ce;--card-shadow:#cec5b8;
+  --text:#1c1917;--text2:#78716c;--text3:#a8a29e;--input-bg:#f5f1eb;
+  --brand:#c1121f;--brand-shadow:#96000d;
+}
+body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-height:100vh;padding-bottom:70px}
+.nav{position:sticky;top:0;z-index:100;height:52px;background:#1c1917;box-shadow:0 3px 0 #000;display:flex;align-items:center;justify-content:space-between;padding:0 14px;gap:8px}
+.nav-logo{display:flex;align-items:center;gap:8px;flex-shrink:0}
+.nav-r{width:30px;height:30px;background:var(--brand);border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:15px;color:#fff;box-shadow:0 3px 0 var(--brand-shadow)}
+.nav-title{color:#fff;font-size:13px;font-weight:700;line-height:1.2}
+.nav-sub{color:#a8a29e;font-size:10px;font-weight:500}
+.nav-center{flex:1;display:flex;justify-content:center}
+.status-badge{font-size:10px;font-weight:800;padding:3px 10px;border-radius:99px;letter-spacing:.05em;transition:all .2s;background:#2c2826;color:#a8a29e}
+.status-badge.saved{background:#16a34a;color:#fff}
+.status-badge.syncing{background:#d97706;color:#fff}
+.status-badge.synced{background:#2563eb;color:#fff}
+.status-badge.error{background:#c1121f;color:#fff}
+.nav-right{display:flex;gap:6px;flex-shrink:0}
+.hero{padding:20px 14px 12px}
+.hero-title{font-size:26px;font-weight:900;letter-spacing:-.02em;line-height:1}
+.hero-title span{color:var(--brand)}
+.hero-sub{font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--text3);text-transform:uppercase;margin-top:4px}
+.rep-chip{display:inline-flex;align-items:center;gap:6px;margin-top:8px;background:var(--card);border:1.5px solid var(--card-border);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:600;color:var(--text2)}
+.rep-dot{width:7px;height:7px;border-radius:50%;background:#16a34a}
+.stats-scroll{overflow-x:auto;padding:0 14px 4px;display:flex;gap:10px;scrollbar-width:none}
+.stats-scroll::-webkit-scrollbar{display:none}
+.stat-card{flex-shrink:0;width:120px;background:var(--card);border:1.5px solid var(--card-border);border-radius:12px;padding:12px 10px;box-shadow:0 4px 0 var(--card-shadow);cursor:pointer;transform:translateY(0);transition:transform .08s,box-shadow .08s}
+.stat-card:active{transform:translateY(4px);box-shadow:0 0 0 var(--card-shadow)}
+.stat-card.fil{border-width:2px}
+.stat-label{font-size:10px;font-weight:700;color:var(--text2);text-align:center;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat-count{font-size:11px;font-weight:800;color:var(--text);text-align:center;margin-top:2px;font-family:'JetBrains Mono',monospace}
+.stat-hint{font-size:9px;color:var(--text3);text-align:center;margin-top:3px}
+.stat-hint.on{color:var(--brand);font-weight:700}
+.fil-banner{margin:8px 14px 0;background:#1c1917;color:#fff;border-radius:10px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:600}
+.fil-banner.hide{display:none}
+.ban-x{background:none;border:none;color:#a8a29e;font-size:18px;cursor:pointer;padding:0 0 0 8px;line-height:1}
+.fbar{margin:14px 14px 0;background:var(--card);border:1.5px solid var(--card-border);border-radius:14px;padding:12px;box-shadow:0 4px 0 var(--card-shadow)}
+.si-wrap{position:relative}
+.si{width:100%;background:var(--input-bg);border:1.5px solid var(--card-border);border-radius:9px;padding:11px 36px 11px 14px;font-family:'Inter',sans-serif;font-size:15px;color:var(--text);outline:none}
+.si:focus{border-color:#94a3b8}
+.si-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:4px;display:none;line-height:1}
+.si-clear.show{display:block}
+.arow{display:flex;gap:8px;margin-top:8px}
+.abtn{flex:1;height:38px;border:none;border-radius:9px;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;transform:translateY(0);transition:transform .08s,box-shadow .08s}
+.abtn:active{transform:translateY(3px)}
+.bdel{background:#fef2f2;color:#c1121f;box-shadow:0 3px 0 #fecaca}
+.bdel.on{background:#c1121f;color:#fff;box-shadow:0 3px 0 var(--brand-shadow)}
+.bdel.on:active,.bdel:not(.on):active{box-shadow:0 0 0 transparent}
+.badd{background:#f0fdf4;color:#16a34a;box-shadow:0 3px 0 #bbf7d0}
+.badd:active{box-shadow:0 0 0 transparent}
+.bsku{background:#eff6ff;color:#2563eb;box-shadow:0 3px 0 #bfdbfe}
+.bsku:active{box-shadow:0 0 0 transparent}
+.del-skus{margin-top:10px;display:none}
+.del-skus.show{display:block}
+.del-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin-bottom:6px}
+.del-pills{display:flex;flex-wrap:wrap;gap:6px}
+.dp{height:28px;padding:0 12px;border:none;border-radius:99px;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;cursor:pointer;color:#fff;transform:translateY(0);transition:transform .08s}
+.dp:active{transform:translateY(3px)}
+.breset{width:100%;margin-top:10px;height:36px;background:#fff5f5;color:#c1121f;border:1.5px dashed #fca5a5;border-radius:9px;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;display:none}
+.breset.show{display:block}
+.rc{padding:10px 14px 4px;font-size:11px;font-weight:600;color:var(--text3)}
+.alist{padding:0 14px;display:flex;flex-direction:column;gap:10px}
+.ac{background:var(--card);border:1.5px solid var(--card-border);border-radius:14px;padding:12px;box-shadow:0 5px 0 var(--card-shadow);position:relative;overflow:hidden}
+.ahdr{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.aname{font-size:14px;font-weight:800;letter-spacing:-.01em;line-height:1.25}
+.aaddr{font-size:10px;color:var(--text3);margin-top:2px}
+.aright{display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0}
+.dbw{width:72px;height:6px;background:#e7e2db;border-radius:99px;overflow:hidden}
+.dbf{height:100%;border-radius:99px;transition:width .4s}
+.dpct{font-size:11px;font-weight:800;font-family:'JetBrains Mono',monospace}
+.spills{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.sp{display:inline-flex;align-items:center;gap:4px;height:28px;padding:0 11px;border:none;border-radius:99px;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;cursor:pointer;background:#e8e3dc;color:#6b6057;box-shadow:0 3px 0 #c8c0b4;transform:translateY(0);transition:transform .08s,background .12s,color .12s}
+.sp:active{transform:translateY(3px);box-shadow:0 0 0 transparent}
+.sp.on{color:#fff}
+.spck{display:none;width:12px;height:12px}
+.sp.on .spck{display:block}
+.rmv{position:absolute;top:10px;right:10px;width:28px;height:28px;background:#c1121f;color:#fff;border:none;border-radius:50%;font-size:14px;cursor:pointer;display:none;align-items:center;justify-content:center;box-shadow:0 3px 0 var(--brand-shadow)}
+.rmv:active{transform:translateY(3px)}
+.dmode .rmv{display:flex}
+.noroute{margin:30px 14px;background:var(--card);border:1.5px dashed var(--card-border);border-radius:14px;padding:30px 20px;text-align:center}
+.noroute h3{font-size:16px;font-weight:800;margin-bottom:8px}
+.noroute p{font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:16px}
+.bpri{height:40px;padding:0 20px;background:var(--brand);color:#fff;border:none;border-radius:10px;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 0 var(--brand-shadow);transform:translateY(0);transition:transform .08s,box-shadow .08s}
+.bpri:active{transform:translateY(4px);box-shadow:0 0 0 var(--brand-shadow)}
+.ebar{position:sticky;bottom:0;background:#1c1917;border-top:1px solid #333;padding:10px 14px;display:flex;gap:8px;z-index:50}
+.bsync{flex:1;height:42px;background:var(--brand);color:#fff;border:none;border-radius:10px;font-family:'Inter',sans-serif;font-size:13px;font-weight:800;cursor:pointer;box-shadow:0 4px 0 var(--brand-shadow);transform:translateY(0);transition:transform .08s,box-shadow .08s;letter-spacing:.02em}
+.bsync:active{transform:translateY(4px);box-shadow:0 0 0 var(--brand-shadow)}
+.bsync:disabled{background:#555;box-shadow:0 4px 0 #333;cursor:not-allowed}
+.bset{height:42px;padding:0 16px;background:#2c2826;color:#d6cfc8;border:none;border-radius:10px;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 4px 0 #111;transform:translateY(0);transition:transform .08s}
+.bset:active{transform:translateY(4px);box-shadow:0 0 0 #111}
+.mbk{position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;display:none;align-items:flex-end;backdrop-filter:blur(4px)}
+.mbk.open{display:flex}
+.msh{background:var(--card);border-radius:20px 20px 0 0;padding:20px 16px 32px;width:100%;max-height:85vh;overflow-y:auto}
+.mhnd{width:36px;height:4px;background:var(--card-border);border-radius:99px;margin:0 auto 16px}
+.mtit{font-size:17px;font-weight:900;letter-spacing:-.02em;margin-bottom:16px}
+.mf{margin-bottom:12px}
+.ml{font-size:11px;font-weight:700;letter-spacing:.07em;color:var(--text3);text-transform:uppercase;margin-bottom:5px}
+.mi{width:100%;background:var(--input-bg);border:1.5px solid var(--card-border);border-radius:9px;padding:10px 12px;font-family:'Inter',sans-serif;font-size:14px;color:var(--text);outline:none}
+.mi:focus{border-color:#94a3b8}
+.crow{display:flex;align-items:center;gap:10px}
+.ci{width:48px;height:40px;border:1.5px solid var(--card-border);border-radius:9px;cursor:pointer;background:none;padding:3px}
+.pprev{height:28px;padding:0 14px;border-radius:99px;font-size:12px;font-weight:700;color:#fff;display:inline-flex;align-items:center}
+.mbtnr{display:flex;gap:8px;margin-top:16px}
+.mbtn{flex:1;height:42px;border:none;border-radius:10px;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer;transform:translateY(0);transition:transform .08s,box-shadow .08s}
+.mbtn:active{transform:translateY(4px)}
+.mcanc{background:#f5f0ea;color:var(--text2);box-shadow:0 3px 0 var(--card-shadow)}
+.mcanc:active{box-shadow:0 0 0 var(--card-shadow)}
+.mconf{background:var(--brand);color:#fff;box-shadow:0 4px 0 var(--brand-shadow)}
+.mconf:active{box-shadow:0 0 0 var(--brand-shadow)}
+.info-box{background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:10px 12px;font-size:12px;color:#1d4ed8;line-height:1.5;margin-bottom:10px}
+/* notes */
+.snotes{margin-top:8px;display:flex;flex-direction:column;gap:4px}
+.snote-row{display:flex;align-items:flex-start;gap:6px}
+.snote-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:1px}
+.snote-sku{font-size:10px;font-weight:700;color:var(--text3);flex-shrink:0;min-width:72px}
+.snote-preview{flex:1;font-size:11px;color:var(--text2);cursor:pointer;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:var(--input-bg);border:1px solid var(--card-border);border-radius:6px;padding:3px 8px}
+.snote-preview:hover{border-color:#94a3b8}
+.snote-add{height:24px;padding:0 8px;border:1.5px solid var(--card-border);border-radius:6px;background:var(--input-bg);color:var(--text3);font-size:10px;font-weight:700;font-family:'Inter',sans-serif;cursor:pointer;display:inline-flex;align-items:center;white-space:nowrap;flex-shrink:0;letter-spacing:.02em}
+.snote-add:active{background:#e8e3dc;transform:translateY(1px)}
+.sphoto-btn{height:24px;width:24px;padding:0;border:1.5px solid var(--card-border);border-radius:6px;background:var(--input-bg);color:var(--text3);font-size:11px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+.sphoto-btn:active{background:#e8e3dc;transform:translateY(1px)}
+.sphoto-btn.has-photo{background:#eff6ff;border-color:#bfdbfe;color:#2563eb}
+.sphoto-thumbs{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.sphoto-thumb-wrap{position:relative}
+.sphoto-thumb{width:44px;height:44px;border-radius:8px;object-fit:cover;border:1.5px solid var(--card-border);cursor:pointer;display:block}
+.sphoto-thumb-label{position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);font-size:7px;font-weight:800;padding:1px 4px;border-radius:99px;color:#fff;white-space:nowrap}
+.photo-viewer-bk{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:300;display:none;align-items:center;justify-content:center;flex-direction:column;padding:20px}
+.photo-viewer-bk.open{display:flex}
+.photo-viewer-img{max-width:100%;max-height:70vh;border-radius:12px;object-fit:contain}
+.photo-viewer-label{color:#fff;font-size:13px;font-weight:700;margin-top:14px;text-align:center}
+.photo-viewer-sub{color:#a8a29e;font-size:11px;margin-top:4px;text-align:center}
+.photo-viewer-btns{display:flex;gap:10px;margin-top:18px}
+.pv-btn{height:40px;padding:0 18px;border:none;border-radius:9px;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer}
+.pv-retake{background:#2c2826;color:#d6cfc8}
+.pv-delete{background:#c1121f;color:#fff}
+.pv-close{background:#3a3530;color:#fff}
+.note-sku-label{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.note-sku-dot{width:12px;height:12px;border-radius:50%}
+.note-sku-name{font-size:14px;font-weight:700}
+.note-acct-name{font-size:11px;color:var(--text3);margin-bottom:4px}
+.note-ta{width:100%;background:var(--input-bg);border:1.5px solid var(--card-border);border-radius:9px;padding:10px 12px;font-family:'Inter',sans-serif;font-size:14px;color:var(--text);outline:none;resize:none;min-height:100px;line-height:1.5}
+.note-ta:focus{border-color:#94a3b8}
+.note-clear-btn{width:100%;height:36px;background:#fff5f5;color:#c1121f;border:1.5px dashed #fca5a5;border-radius:9px;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;margin-top:8px}
+/* WHO ARE YOU screen */
+.whoami-bk{position:fixed;inset:0;background:var(--bg);z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px}
+.whoami-bk.hide{display:none}
+.whoami-title{font-size:24px;font-weight:900;letter-spacing:-.02em;margin-bottom:4px;text-align:center}
+.whoami-title span{color:var(--brand)}
+.whoami-sub{font-size:12px;color:var(--text3);margin-bottom:24px;text-align:center;font-weight:600;letter-spacing:.05em;text-transform:uppercase}
+.whoami-list{width:100%;max-width:360px;display:flex;flex-direction:column;gap:10px}
+.whoami-btn{width:100%;background:var(--card);border:1.5px solid var(--card-border);border-radius:14px;padding:14px 16px;box-shadow:0 4px 0 var(--card-shadow);cursor:pointer;display:flex;align-items:center;gap:12px;font-family:'Inter',sans-serif;transform:translateY(0);transition:transform .08s,box-shadow .08s}
+.whoami-btn:active{transform:translateY(4px);box-shadow:0 0 0 var(--card-shadow)}
+.whoami-av{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#fff;flex-shrink:0}
+.whoami-info{text-align:left;flex:1}
+.whoami-name{font-size:14px;font-weight:800;color:var(--text)}
+.whoami-team{font-size:11px;color:var(--text3);margin-top:1px}
+.whoami-loading{margin-top:24px;font-size:12px;color:var(--text3);font-weight:600}
+</style>
+</head>
+<body>
+
+<!-- WHO ARE YOU SCREEN -->
+<div class="whoami-bk hide" id="whoamiBk">
+  <div class="whoami-title">Innovation <span>Tracker</span></div>
+  <div class="whoami-sub">Tap your name to get started</div>
+  <div class="whoami-list" id="whoamiList"></div>
+  <div class="whoami-loading" id="whoamiLoading" style="display:none">Loading your accounts...</div>
+</div>
+
+<nav class="nav">
+  <div class="nav-logo">
+    <div class="nav-r">R</div>
+    <div><div class="nav-title">UDS Tracker</div><div class="nav-sub">Tyler Beverages</div></div>
+  </div>
+  <div class="nav-center"><div class="status-badge" id="statusBadge">OFFLINE</div></div>
+  <div class="nav-right"></div>
+</nav>
+<div class="hero">
+  <div class="hero-title">Innovation <span>Tracker</span></div>
+  <div class="hero-sub">Universal Distribution Sheet</div>
+  <div id="repChip" class="rep-chip" style="display:none"><div class="rep-dot"></div><span id="repChipTxt"></span></div>
+</div>
+<div class="stats-scroll" id="statsRow"></div>
+<div class="fil-banner hide" id="filBanner">
+  <span id="filBannerTxt"></span>
+  <button class="ban-x" data-act="clearSF">&#x2715;</button>
+</div>
+<div class="fbar">
+  <div class="si-wrap">
+    <input class="si" id="si" placeholder="Search your accounts..." autocomplete="off">
+    <button class="si-clear" id="siClear" data-act="clearSearch">&#x2715;</button>
+  </div>
+  <div class="arow">
+    <button class="abtn bdel" id="btnDel" data-act="togDel">&#128465; Delete</button>
+    <button class="abtn badd" data-act="openAA">+ Account</button>
+    <button class="abtn bsku" data-act="openAS">+ SKU</button>
+  </div>
+  <div class="del-skus" id="delSkus"><div class="del-lbl">Remove SKU:</div><div class="del-pills" id="delPills"></div></div>
+  <button class="breset" id="btnReset" data-act="doReset">&#9888;&#65039; Reset all data to defaults</button>
+</div>
+<div class="rc" id="rc"></div>
+<div id="mc"></div>
+<div class="ebar">
+  <button class="bsync" id="btnSync" data-act="doSync">&#8593; Sync to Manager</button>
+  <button class="bset" data-act="openSetup">&#9881; Switch User</button>
+</div>
+
+<!-- ADD ACCOUNT -->
+<div class="mbk" id="mAA">
+  <div class="msh">
+    <div class="mhnd"></div>
+    <div class="mtit">Add Account</div>
+    <div class="mf"><div class="ml">Account Name</div><input class="mi" id="aaname" placeholder="e.g. FAST FUELS"></div>
+    <div class="mf"><div class="ml">Address (optional)</div><input class="mi" id="aaaddr" placeholder="e.g. 100 Main St, City"></div>
+    <div class="mbtnr">
+      <button class="mbtn mcanc" data-act="closeM" data-id="mAA">Cancel</button>
+      <button class="mbtn mconf" data-act="confAA">Add Account</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADD SKU -->
+<div class="mbk" id="mAS">
+  <div class="msh">
+    <div class="mhnd"></div>
+    <div class="mtit">Add Innovation SKU</div>
+    <div class="mf"><div class="ml">SKU Name</div><input class="mi" id="asname" placeholder="e.g. Ghost Orange Cream"></div>
+    <div class="mf">
+      <div class="ml">Color</div>
+      <div class="crow"><input type="color" class="ci" id="ascolor" value="#e63946"><div class="pprev" id="spp" style="background:#e63946">New SKU</div></div>
+    </div>
+    <div class="mbtnr">
+      <button class="mbtn mcanc" data-act="closeM" data-id="mAS">Cancel</button>
+      <button class="mbtn mconf" data-act="confAS">Add SKU</button>
+    </div>
+  </div>
+</div>
+
+<!-- SETUP / SWITCH USER -->
+<div class="mbk" id="mSU">
+  <div class="msh">
+    <div class="mhnd"></div>
+    <div class="mtit">&#9881; Switch User</div>
+    <div class="info-box">Switching users will reload the app for a different rep. Your current data is already saved on this device.</div>
+    <div class="mbtnr">
+      <button class="mbtn mcanc" data-act="closeM" data-id="mSU">Cancel</button>
+      <button class="mbtn mconf" data-act="confSwitchUser">Switch User</button>
+    </div>
+  </div>
+</div>
+
+<!-- NOTE MODAL -->
+<div class="mbk" id="mNote">
+  <div class="msh">
+    <div class="mhnd"></div>
+    <div class="note-acct-name" id="noteAcctName"></div>
+    <div class="note-sku-label">
+      <div class="note-sku-dot" id="noteSkuDot"></div>
+      <div class="note-sku-name" id="noteSkuName"></div>
+    </div>
+    <div class="ml">Why is this SKU missing?</div>
+    <textarea class="note-ta" id="noteTa" placeholder="e.g. No room on shelf, buyer said call back next week..."></textarea>
+    <button class="note-clear-btn" id="noteClearBtn" data-act="clearNote">Clear Note</button>
+    <div class="mbtnr">
+      <button class="mbtn mcanc" data-act="closeM" data-id="mNote">Cancel</button>
+      <button class="mbtn mconf" data-act="saveNote">Save Note</button>
+    </div>
+  </div>
+</div>
+
+<!-- PHOTO VIEWER -->
+<div class="photo-viewer-bk" id="photoViewerBk">
+  <img class="photo-viewer-img" id="photoViewerImg" src="">
+  <div class="photo-viewer-label" id="photoViewerLabel"></div>
+  <div class="photo-viewer-sub" id="photoViewerSub"></div>
+  <div class="photo-viewer-btns">
+    <button class="pv-btn pv-retake" data-act="retakePhoto">Retake</button>
+    <button class="pv-btn pv-delete" data-act="deletePhoto">Delete</button>
+    <button class="pv-btn pv-close" data-act="closePhotoViewer">Close</button>
+  </div>
+</div>
+<input type="file" id="photoInput" accept="image/*" capture="environment" style="display:none">
+
+<script>
+// --- SUPABASE CONFIG ----------------------------------------------------------
+const SB_URL = 'https://alwhrpzozgnxfxvxgzwc.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFsd2hycHpvemdueGZ4dnhnendjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MzU0MjMsImV4cCI6MjA5NzMxMTQyM30.kGdGX10yMoZC4-qvWbt42-Klv-kwMyY8z7Rr3UzuBPg';
+
+async function sbFetch(path, opts={}) {
+  const res = await fetch(SB_URL + path, {
+    ...opts,
+    headers: { 'apikey': SB_KEY, 'Authorization': 'Bearer ' + SB_KEY, 'Content-Type': 'application/json', 'Prefer': 'return=minimal', ...(opts.headers||{}) }
+  });
+  if (!res.ok) { const t = await res.text(); throw new Error(t); }
+  const ct = res.headers.get('content-type') || '';
+  return ct.includes('json') ? res.json() : null;
+}
+
+// --- CONSTANTS ----------------------------------------------------------------
+const DSKU=[
+  {id:'snapple_rasp',name:'Snapple Raspberry',short:'Snapple Rasp',color:'#e63946'},
+  {id:'bloom_summer',name:'Bloom Summer Blast',short:'Bloom Summer',color:'#2563eb'},
+  {id:'ghost_stripes',name:'Ghost Stripes',short:'Ghost Stripes',color:'#7c3aed'},
+  {id:'ghost_7up',name:'Ghost 7UP',short:'Ghost 7UP',color:'#0d9488'},
+  {id:'c4_pink_lem',name:'C4 Pink Lemonade',short:'C4 Pink Lem',color:'#db2777'},
+];
+
+const REP_COLORS=['#c1121f','#2563eb','#7c3aed','#0d9488','#d97706','#475569','#be185d','#0891b2'];
+
+// The 8 reps on the team - shown on the "Who are you" screen.
+// This list only controls the picker UI; actual account data is pulled live from Supabase.
+const TEAM_ROSTER = [
+  {name:'Brandon Corley', team:"Jared's Team"},
+  {name:'Leobardo Gaona', team:"Jared's Team"},
+  {name:'Samuel William', team:"Jared's Team"},
+  {name:'Trever Howard',  team:"Jared's Team"},
+  {name:'James Moore',    team:"David's Team"},
+  {name:'MJ Grier',       team:"David's Team"},
+  {name:'Samuel French',  team:"David's Team"},
+  {name:'Victor McDonal', team:"David's Team"},
+];
+
+// --- STATE --------------------------------------------------------------------
+let accts=[],skus=[],repName='',routeName='',aSF=null,dMode=false;
+
+// --- PERSIST -----------------------------------------------------------------
+function saveLocal() {
+  localStorage.setItem('uds_accts_v5',JSON.stringify(accts));
+  localStorage.setItem('uds_skus_v5',JSON.stringify(skus));
+  localStorage.setItem('uds_meta_v5',JSON.stringify({repName,routeName}));
+  setStatus('saved','SAVED');
+}
+function loadLocal() {
+  const a=localStorage.getItem('uds_accts_v5'),s=localStorage.getItem('uds_skus_v5'),m=localStorage.getItem('uds_meta_v5');
+  if(a) accts=JSON.parse(a);
+  if(s) skus=JSON.parse(s); else skus=JSON.parse(JSON.stringify(DSKU));
+  if(m){const x=JSON.parse(m);repName=x.repName||'';routeName=x.routeName||'';}
+  accts.forEach(a=>skus.forEach(s=>{if(!(s.id in a))a[s.id]=false;}));
+}
+
+// --- STATUS BADGE -------------------------------------------------------------
+function setStatus(type, text) {
+  const b = document.getElementById('statusBadge');
+  b.className = 'status-badge ' + type;
+  b.textContent = text;
+  if (type === 'saved' || type === 'synced') {
+    clearTimeout(b._t);
+    b._t = setTimeout(() => { b.className='status-badge'; b.textContent='READY'; }, 2000);
+  }
+}
+
+// --- WHO ARE YOU SCREEN -------------------------------------------------------
+function repColorFor(name){
+  const idx = TEAM_ROSTER.findIndex(r=>r.name===name);
+  return REP_COLORS[idx>=0?idx%REP_COLORS.length:0];
+}
+function repInitials(n){return(n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
+
+function showWhoAmI(){
+  const list = document.getElementById('whoamiList');
+  list.innerHTML = '';
+  TEAM_ROSTER.forEach(function(r){
+    const btn = document.createElement('button');
+    btn.className = 'whoami-btn';
+    btn.type = 'button';
+    btn.innerHTML =
+      '<div class="whoami-av" style="background:'+repColorFor(r.name)+'">'+repInitials(r.name)+'</div>'+
+      '<div class="whoami-info"><div class="whoami-name"></div><div class="whoami-team"></div></div>';
+    btn.querySelector('.whoami-name').textContent = r.name;
+    btn.querySelector('.whoami-team').textContent = r.team;
+    btn.addEventListener('click', function(){ selectUser(r.name); });
+    list.appendChild(btn);
+  });
+  document.getElementById('whoamiBk').classList.remove('hide');
+}
+function hideWhoAmI(){ document.getElementById('whoamiBk').classList.add('hide'); }
+
+async function selectUser(name){
+  document.getElementById('whoamiList').style.display='none';
+  document.getElementById('whoamiLoading').style.display='block';
+  repName = name;
+  const roster = TEAM_ROSTER.find(r=>r.name===name);
+  routeName = (roster && roster.team === "Jared's Team") ? 'Jared Young Team' : 'David Ferrell Team';
+
+  try {
+    // pull this rep's starting account list from the seed table - only used the very first time
+    const seedRows = await sbFetch('/rest/v1/uds_rep_seed_accounts?rep_name=eq.' + encodeURIComponent(name) + '&select=accounts', { headers: { 'Prefer': '' } });
+    if (seedRows && seedRows.length && seedRows[0].accounts) {
+      accts = seedRows[0].accounts.map(a => {
+        const o = { id: a.id, name: a.name, addr: a.addr || '' };
+        DSKU.forEach(s => o[s.id] = false);
+        return o;
+      });
+    } else {
+      accts = [];
+    }
+  } catch(e) {
+    console.error('Could not load seed accounts', e);
+    // restore picker so rep can retry - don't leave them stuck
+    document.getElementById('whoamiList').style.display='flex';
+    document.getElementById('whoamiLoading').style.display='none';
+    alert('Could not load your accounts. Check your connection and tap your name again.');
+    repName = '';
+    return;
+  }
+
+  skus = JSON.parse(JSON.stringify(DSKU));
+  saveLocal();
+  hideWhoAmI();
+  document.getElementById('whoamiList').style.display='flex';
+  document.getElementById('whoamiLoading').style.display='none';
+  render();
+  setTimeout(doSync, 400);
+}
+
+// --- SUPABASE SYNC ------------------------------------------------------------
+async function doSync() {
+  if (!repName) { showWhoAmI(); return; }
+  const btn = document.getElementById('btnSync');
+  btn.disabled = true;
+  btn.textContent = 'Syncing...';
+  setStatus('syncing', 'SYNCING');
+  try {
+    const masterRows = await sbFetch('/rest/v1/uds_master_skus?select=*&order=sort_order', { headers: { 'Prefer': '' } });
+    if (masterRows && masterRows.length) {
+      masterRows.forEach(ms => {
+        if (!skus.find(s => s.id === ms.id)) {
+          skus.push({ id: ms.id, name: ms.name, short: ms.short, color: ms.color });
+          accts.forEach(a => { if (!(ms.id in a)) a[ms.id] = false; });
+        }
+      });
+    }
+    const payload = { rep_name: repName, route_name: routeName || '', payload: { repName, routeName, skus, accounts: accts, exportedAt: new Date().toLocaleString() } };
+    await sbFetch('/rest/v1/uds_rep_syncs?on_conflict=rep_name,route_name', {
+      method: 'POST',
+      headers: { 'Prefer': 'resolution=merge-duplicates,return=minimal' },
+      body: JSON.stringify(payload)
+    });
+    saveLocal();
+    setStatus('synced', 'SYNCED');
+    btn.textContent = 'OK Synced';
+    setTimeout(() => { btn.disabled=false; btn.textContent='^ Sync to Manager'; }, 2000);
+    render();
+  } catch(e) {
+    setStatus('error', 'SYNC FAILED');
+    btn.disabled = false;
+    btn.textContent = '^ Sync to Manager';
+    alert('Sync failed. Check your connection.\n\n' + e.message);
+  }
+}
+
+// --- RENDER -------------------------------------------------------------------
+function render(){
+  const rc=document.getElementById('repChip'),rt=document.getElementById('repChipTxt');
+  if(repName){rc.style.display='inline-flex';rt.textContent=repName+(routeName?' - '+routeName:'');}else rc.style.display='none';
+  rStats();rDelPills();rList();
+}
+function gFil(){
+  const s=document.getElementById('si').value.toLowerCase().trim();
+  return accts.filter(a=>{
+    if(s&&!a.name.toLowerCase().includes(s))return false;
+    if(aSF&&a[aSF]===true)return false;
+    return true;
+  });
+}
+function sortA(list){return[...list].sort((a,b)=>a.name.localeCompare(b.name));}
+function dp(a){if(!skus.length)return 0;return Math.round(skus.filter(s=>a[s.id]).length/skus.length*100);}
+function dc(p){return p>=100?'#16a34a':p>=60?'#b45309':'#c1121f';}
+function donut(p,col){const r=18,c=26,ci=2*Math.PI*r,d=ci*p/100;return'<svg viewBox="0 0 52 52" width="52" height="52"><circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="#e0d8cf" stroke-width="6"/><circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+col+'" stroke-width="6" stroke-linecap="round" stroke-dasharray="'+d+' '+ci+'" transform="rotate(-90 '+c+' '+c+')" style="transition:stroke-dasharray .5s"/><text x="'+c+'" y="'+(c+4)+'" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" font-weight="800" fill="#1c1917">'+p+'%</text></svg>';}
+function rStats(){
+  const row=document.getElementById('statsRow'),tot=accts.length;
+  if(!tot){row.innerHTML='';return;}
+  const ov=Math.round(accts.reduce((s,a)=>s+dp(a),0)/tot);
+  let h='<div class="stat-card" data-act="clearSF"><div style="display:flex;justify-content:center;margin-bottom:8px">'+donut(ov,'#c1121f')+'</div><div class="stat-label">ALL SKUs</div><div class="stat-count">'+ov+'%</div><div class="stat-hint">'+tot+' accounts</div></div>';
+  skus.forEach(s=>{
+    const hv=accts.filter(a=>a[s.id]).length,ms=tot-hv,p=tot?Math.round(hv/tot*100):0,isA=aSF===s.id;
+    h+='<div class="stat-card'+(isA?' fil':'')+'" data-act="togSF" data-id="'+escHtml(s.id)+'" style="'+(isA?'border-color:'+s.color+';box-shadow:0 4px 0 '+s.color:'')+'"><div style="display:flex;justify-content:center;margin-bottom:8px">'+donut(p,s.color)+'</div><div class="stat-label">'+s.short+'</div><div class="stat-count">'+hv+'/'+tot+'</div><div class="stat-hint'+(isA?' on':'')+'">'+( isA?'SHOWING MISSING':ms+' missing')+'</div></div>';
+  });
+  row.innerHTML=h;
+  const bn=document.getElementById('filBanner'),bt=document.getElementById('filBannerTxt');
+  if(aSF){const s=skus.find(x=>x.id===aSF);bt.textContent=accts.filter(a=>!a[s.id]).length+' missing '+s.name;bn.classList.remove('hide');}
+  else bn.classList.add('hide');
+  document.getElementById('rc').textContent=gFil().length+' of '+tot+' accounts shown';
+}
+function rDelPills(){
+  const w=document.getElementById('delSkus'),p=document.getElementById('delPills'),br=document.getElementById('btnReset');
+  if(!dMode){w.classList.remove('show');br.classList.remove('show');return;}
+  w.classList.add('show');br.classList.add('show');
+  p.innerHTML=skus.map(s=>'<button class="dp" style="background:'+s.color+'" data-act="delSKU" data-id="'+escHtml(s.id)+'">X '+s.short+'</button>').join('');
+}
+function escHtml(t){return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function acctCard(a){
+  const p=dp(a);
+  const pills=skus.map(s=>{
+    const on=a[s.id];
+    const pill='<button class="sp'+(on?' on':'')+'" style="'+(on?'background:'+s.color+';box-shadow:0 3px 0 '+s.color+'66':'')+'" data-act="togSKU" data-aid="'+escHtml(a.id)+'" data-sid="'+escHtml(s.id)+'"><svg class="spck" viewBox="0 0 14 14" fill="none"><path d="M2.5 7l3 3L11.5 3.5" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>'+s.short+'</button>';
+    const noteBtn=on?'':'<button class="snote-add" data-act="openNote" data-aid="'+escHtml(a.id)+'" data-sid="'+escHtml(s.id)+'">+ note</button>';
+    const hasPhoto=!!a['photo_'+s.id];
+    const photoBtn='<button class="sphoto-btn'+(hasPhoto?' has-photo':'')+'" data-act="openCamera" data-aid="'+escHtml(a.id)+'" data-sid="'+escHtml(s.id)+'" title="'+(hasPhoto?'View photo':'Add photo')+'">'+(hasPhoto?'PHOTO':'CAM')+'</button>';
+    return'<span style="display:inline-flex;align-items:center;gap:3px">'+pill+noteBtn+photoBtn+'</span>';
+  }).join('');
+  const noteRows=skus.filter(s=>!a[s.id]&&a['note_'+s.id]).map(s=>{
+    const note=a['note_'+s.id];
+    const preview=note.length>38?note.slice(0,38)+'...':note;
+    return'<div class="snote-row"><div class="snote-dot" style="background:'+s.color+'"></div><div class="snote-sku">'+s.short+'</div><div class="snote-preview" data-act="openNote" data-aid="'+escHtml(a.id)+'" data-sid="'+escHtml(s.id)+'">'+escHtml(preview)+'</div></div>';
+  }).join('');
+  const notesSection=noteRows?'<div class="snotes">'+noteRows+'</div>':'';
+  const photoThumbs=skus.filter(s=>a['photo_'+s.id]).map(s=>{
+    return'<div class="sphoto-thumb-wrap"><img class="sphoto-thumb" src="'+a['photo_'+s.id]+'" data-act="viewPhoto" data-aid="'+escHtml(a.id)+'" data-sid="'+escHtml(s.id)+'"><div class="sphoto-thumb-label" style="background:'+s.color+'">'+s.short+'</div></div>';
+  }).join('');
+  const photosSection=photoThumbs?'<div class="sphoto-thumbs">'+photoThumbs+'</div>':'';
+  return'<div class="ac"><div class="ahdr"><div><div class="aname">'+a.name+'</div>'+(a.addr?'<div class="aaddr">'+a.addr+'</div>':'')+' </div><div class="aright"><div class="dpct" style="color:'+dc(p)+'">'+p+'%</div><div class="dbw"><div class="dbf" style="width:'+p+'%;background:'+dc(p)+'"></div></div></div></div><div class="spills">'+pills+'</div>'+notesSection+photosSection+'<button class="rmv" data-act="delAcct" data-aid="'+escHtml(a.id)+'">X</button></div>';
+}
+function rList(){
+  const mc=document.getElementById('mc'),f=sortA(gFil());
+  document.getElementById('rc').textContent=f.length+' of '+accts.length+' accounts shown';
+  if(!accts.length){mc.innerHTML='<div class="noroute"><h3>No accounts yet</h3><p>Tap "+ Account" to start building your list.</p></div>';return;}
+  if(!f.length){mc.innerHTML='<div style="padding:30px 14px;text-align:center;color:var(--text3);font-size:13px;font-weight:600">No accounts match "'+escHtml(document.getElementById('si').value)+'"</div>';return;}
+  mc.innerHTML='<div class="alist'+(dMode?' dmode':'')+'">'+f.map(acctCard).join('')+'</div>';
+}
+
+// --- INTERACTIONS -------------------------------------------------------------
+function onSearchInput(){
+  document.getElementById('siClear').classList.toggle('show', document.getElementById('si').value.length>0);
+  render();
+}
+function clearSearch(){ document.getElementById('si').value=''; document.getElementById('siClear').classList.remove('show'); render(); document.getElementById('si').focus(); }
+function togSKU(aid,sid){
+  const a=accts.find(x=>x.id===aid);if(!a)return;
+  a[sid]=!a[sid];
+  if(a[sid]) delete a['note_'+sid];
+  saveLocal();render();
+}
+function togSF(id){aSF=aSF===id?null:id;render();}
+function clearSF(){aSF=null;render();}
+function togDel(){dMode=!dMode;document.getElementById('btnDel').classList.toggle('on',dMode);render();}
+function delSKU(id){if(!confirm('Remove this SKU?'))return;skus=skus.filter(s=>s.id!==id);accts.forEach(a=>delete a[id]);saveLocal();render();}
+function delAcct(id){if(!confirm('Remove this account?'))return;accts=accts.filter(a=>a.id!==id);saveLocal();render();}
+function doReset(){if(!confirm('Reset all data to defaults? This restores your original account list from when you first set up.'))return; selectUser(repName); }
+
+// --- ADD ACCOUNT --------------------------------------------------------------
+function openAA(){document.getElementById('aaname').value='';document.getElementById('aaaddr').value='';document.getElementById('mAA').classList.add('open');setTimeout(()=>document.getElementById('aaname').focus(),200);}
+function confAA(){
+  const name=document.getElementById('aaname').value.trim().toUpperCase();
+  if(!name){alert('Enter account name');return;}
+  const addr=document.getElementById('aaaddr').value.trim();
+  const o={id:'acct_'+Date.now(),name,addr};skus.forEach(s=>o[s.id]=false);accts.push(o);saveLocal();render();closeM('mAA');
+}
+
+// --- ADD SKU ------------------------------------------------------------------
+function openAS(){document.getElementById('asname').value='';document.getElementById('ascolor').value='#e63946';updSP();document.getElementById('mAS').classList.add('open');}
+function updSP(){const n=document.getElementById('asname').value||'New SKU',c=document.getElementById('ascolor').value,p=document.getElementById('spp');p.style.background=c;p.textContent=n;}
+function confAS(){
+  const name=document.getElementById('asname').value.trim();if(!name){alert('Enter SKU name');return;}
+  const color=document.getElementById('ascolor').value;
+  const id=name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')+Date.now();
+  skus.push({id,name,short:name.length>12?name.slice(0,12)+'...':name,color});accts.forEach(a=>a[id]=false);saveLocal();render();closeM('mAS');
+}
+
+// --- SWITCH USER --------------------------------------------------------------
+function openSetup(){document.getElementById('mSU').classList.add('open');}
+function confSwitchUser(){
+  closeM('mSU');
+  repName=''; routeName=''; accts=[]; skus=JSON.parse(JSON.stringify(DSKU));
+  localStorage.removeItem('uds_accts_v5');
+  localStorage.removeItem('uds_skus_v5');
+  localStorage.removeItem('uds_meta_v5');
+  showWhoAmI();
+}
+
+// --- NOTE MODAL ---------------------------------------------------------------
+let noteAcctId=null, noteSkuId=null;
+function openNote(aid,sid){
+  const a=accts.find(x=>x.id===aid);
+  const s=skus.find(x=>x.id===sid);
+  if(!a||!s)return;
+  noteAcctId=aid; noteSkuId=sid;
+  document.getElementById('noteAcctName').textContent=a.name;
+  document.getElementById('noteSkuDot').style.background=s.color;
+  document.getElementById('noteSkuName').textContent=s.name;
+  document.getElementById('noteTa').value=a['note_'+sid]||'';
+  const cb=document.getElementById('noteClearBtn');
+  cb.style.display=a['note_'+sid]?'block':'none';
+  document.getElementById('mNote').classList.add('open');
+  setTimeout(()=>document.getElementById('noteTa').focus(),200);
+}
+function saveNote(){
+  const a=accts.find(x=>x.id===noteAcctId);if(!a)return;
+  const txt=document.getElementById('noteTa').value.trim();
+  if(txt) a['note_'+noteSkuId]=txt;
+  else delete a['note_'+noteSkuId];
+  saveLocal();render();closeM('mNote');
+}
+function clearNote(){
+  const a=accts.find(x=>x.id===noteAcctId);if(!a)return;
+  delete a['note_'+noteSkuId];
+  saveLocal();render();closeM('mNote');
+}
+
+// --- PHOTOS -------------------------------------------------------------------
+let photoAcctId=null, photoSkuId=null;
+
+function openCamera(aid,sid){
+  const a=accts.find(x=>x.id===aid);
+  if(a && a['photo_'+sid]){ viewPhoto(aid,sid); return; }
+  photoAcctId=aid; photoSkuId=sid;
+  document.getElementById('photoInput').click();
+}
+
+function handlePhotoFile(input){
+  const file=input.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const img=new Image();
+    img.onload=function(){
+      const maxW=480;
+      const scale=Math.min(1, maxW/img.width);
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.round(img.width*scale);
+      canvas.height=Math.round(img.height*scale);
+      const ctx=canvas.getContext('2d');
+      ctx.drawImage(img,0,0,canvas.width,canvas.height);
+      const compressed=canvas.toDataURL('image/jpeg',0.5);
+      const a=accts.find(x=>x.id===photoAcctId);
+      if(a){
+        a['photo_'+photoSkuId]=compressed;
+        a['photo_ts_'+photoSkuId]=new Date().toLocaleString();
+        saveLocal();render();
+      }
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+  input.value='';
+}
+
+function viewPhoto(aid,sid){
+  const a=accts.find(x=>x.id===aid);
+  const s=skus.find(x=>x.id===sid);
+  if(!a||!s||!a['photo_'+sid])return;
+  photoAcctId=aid; photoSkuId=sid;
+  document.getElementById('photoViewerImg').src=a['photo_'+sid];
+  document.getElementById('photoViewerLabel').textContent=a.name+' - '+s.name;
+  document.getElementById('photoViewerSub').textContent=(a['photo_ts_'+sid]?'Taken '+a['photo_ts_'+sid]:'')+(a[sid]?' - Placed':' - Not yet placed');
+  document.getElementById('photoViewerBk').classList.add('open');
+}
+
+function retakePhoto(){
+  closePhotoViewer();
+  document.getElementById('photoInput').click();
+}
+
+function deletePhoto(){
+  if(!confirm('Delete this photo?'))return;
+  const a=accts.find(x=>x.id===photoAcctId);
+  if(a){ delete a['photo_'+photoSkuId]; delete a['photo_ts_'+photoSkuId]; saveLocal(); render(); }
+  closePhotoViewer();
+}
+
+function closePhotoViewer(){ document.getElementById('photoViewerBk').classList.remove('open'); }
+document.getElementById('photoViewerBk').addEventListener('click', function(e){ if(e.target===this) closePhotoViewer(); });
+
+function closeM(id){document.getElementById(id).classList.remove('open');}
+document.querySelectorAll('.mbk').forEach(el=>el.addEventListener('click',e=>{if(e.target===el)el.classList.remove('open');}));
+
+// --- DELEGATED CLICK HANDLER ---------------------------------------------------
+// All dynamically-rendered buttons use data-act/data-id/data-aid/data-sid instead
+// of inline onclick with escaped quotes, since that pattern is fragile across
+// browsers and file-transfer paths (email attachments, Drive previews, etc).
+document.addEventListener('click', function(e){
+  const el = e.target.closest('[data-act]');
+  if(!el) return;
+  const act = el.getAttribute('data-act');
+  const id = el.getAttribute('data-id');
+  const aid = el.getAttribute('data-aid');
+  const sid = el.getAttribute('data-sid');
+  if(act === 'togSF') togSF(id);
+  else if(act === 'clearSF') clearSF();
+  else if(act === 'delSKU') delSKU(id);
+  else if(act === 'togSKU') togSKU(aid, sid);
+  else if(act === 'openNote') openNote(aid, sid);
+  else if(act === 'openCamera') openCamera(aid, sid);
+  else if(act === 'viewPhoto') viewPhoto(aid, sid);
+  else if(act === 'delAcct') delAcct(aid);
+  else if(act === 'closeM') closeM(id);
+  else if(act === 'clearSearch') clearSearch();
+  else if(act === 'togDel') togDel();
+  else if(act === 'openAA') openAA();
+  else if(act === 'openAS') openAS();
+  else if(act === 'doReset') doReset();
+  else if(act === 'doSync') doSync();
+  else if(act === 'openSetup') openSetup();
+  else if(act === 'confAA') confAA();
+  else if(act === 'confAS') confAS();
+  else if(act === 'confSwitchUser') confSwitchUser();
+  else if(act === 'clearNote') clearNote();
+  else if(act === 'saveNote') saveNote();
+  else if(act === 'retakePhoto') retakePhoto();
+  else if(act === 'deletePhoto') deletePhoto();
+  else if(act === 'closePhotoViewer') closePhotoViewer();
+});
+
+// --- NON-CLICK LISTENERS --------------------------------------------------------
+// Search input, SKU color/name preview, and the hidden file input all fire on
+// 'input'/'change' rather than 'click', so they're wired directly here instead
+// of inline, for the same cross-browser-safety reason as the delegated handler above.
+document.getElementById('si').addEventListener('input', onSearchInput);
+document.getElementById('asname').addEventListener('input', updSP);
+document.getElementById('ascolor').addEventListener('input', updSP);
+document.getElementById('photoInput').addEventListener('change', function(){ handlePhotoFile(this); });
+
+// --- INIT ---------------------------------------------------------------------
+loadLocal();
+if (repName && accts.length) {
+  // returning rep on this device - go straight in
+  render();
+} else {
+  // first time on this device, or just switched user - ask who they are
+  showWhoAmI();
+}
+</script>
+</body>
+</html>

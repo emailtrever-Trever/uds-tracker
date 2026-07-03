@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>UDS Manager Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#f2ede6;--card:#faf7f3;--card-border:#e0d8ce;--card-shadow:#cec5b8;
+  --text:#1c1917;--text2:#78716c;--text3:#a8a29e;--input-bg:#f5f1eb;
+  --brand:#c1121f;--brand-shadow:#96000d;
+}
+body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-height:100vh;padding-bottom:40px}
+.nav{position:sticky;top:0;z-index:100;height:52px;background:#1c1917;box-shadow:0 3px 0 #000;display:flex;align-items:center;justify-content:space-between;padding:0 14px}
+.nav-logo{display:flex;align-items:center;gap:8px}
+.nav-m{width:30px;height:30px;background:var(--brand);border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:11px;color:#fff;box-shadow:0 3px 0 var(--brand-shadow)}
+.nav-title{color:#fff;font-size:13px;font-weight:700;line-height:1.2}
+.nav-sub{color:#a8a29e;font-size:10px;font-weight:500}
+.nav-center{flex:1;display:flex;justify-content:center}
+.sync-badge{font-size:10px;font-weight:800;padding:3px 10px;border-radius:99px;letter-spacing:.05em;background:#2c2826;color:#a8a29e;cursor:pointer;border:none;font-family:'Inter',sans-serif;transition:all .2s}
+.sync-badge.loading{background:#d97706;color:#fff}
+.sync-badge.ok{background:#16a34a;color:#fff}
+.sync-badge.err{background:#c1121f;color:#fff}
+.nav-right{display:flex;gap:6px}
+.nav-btn{height:30px;padding:0 10px;border:none;border-radius:7px;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;cursor:pointer;background:#2c2826;color:#d6cfc8;box-shadow:0 3px 0 #111;transform:translateY(0);transition:transform .08s,box-shadow .08s}
+.nav-btn.active{background:var(--brand);color:#fff;box-shadow:0 3px 0 var(--brand-shadow)}
+.nav-btn:active{transform:translateY(3px);box-shadow:0 0 0 #111}
+.hero{padding:20px 14px 12px}
+.hero-title{font-size:26px;font-weight:900;letter-spacing:-.02em}
+.hero-title span{color:var(--brand)}
+.hero-sub{font-size:10px;font-weight:700;letter-spacing:.12em;color:var(--text3);text-transform:uppercase;margin-top:4px}
+.hero-ts{font-size:11px;color:var(--text3);margin-top:5px}
+.team-tabs{display:flex;gap:8px;padding:14px 14px 4px}
+.team-tab{flex:1;height:42px;border:1.5px solid var(--card-border);border-radius:10px;background:var(--card);font-family:'Inter',sans-serif;font-size:12px;font-weight:700;color:var(--text2);cursor:pointer;box-shadow:0 4px 0 var(--card-shadow);transform:translateY(0);transition:transform .08s,box-shadow .08s,background .1s,color .1s}
+.team-tab:active{transform:translateY(4px);box-shadow:0 0 0 var(--card-shadow)}
+.team-tab.active{background:#1c1917;color:#fff;border-color:#1c1917;box-shadow:0 4px 0 #000}
+.team-tab .tt-count{display:block;font-size:9px;font-weight:600;opacity:.7;margin-top:1px}
+.sum-bar{margin:12px 14px 12px;background:var(--card);border:1.5px solid var(--card-border);border-radius:14px;padding:14px;box-shadow:0 4px 0 var(--card-shadow)}
+.sum-row{display:flex;gap:12px;align-items:center}
+.sum-big{flex:1}
+.sum-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin-bottom:4px}
+.sum-val{font-size:28px;font-weight:900;font-family:'JetBrains Mono',monospace;line-height:1}
+.sum-val span{font-size:13px;font-weight:600;color:var(--text2);font-family:'Inter',sans-serif}
+.sdiv{width:1px;height:40px;background:var(--card-border)}
+.ss{text-align:center}
+.ss-val{font-size:18px;font-weight:900;font-family:'JetBrains Mono',monospace}
+.ss-lbl{font-size:10px;color:var(--text3);font-weight:600;margin-top:2px}
+.tbar{height:8px;background:#e7e2db;border-radius:99px;overflow:hidden;margin-top:12px}
+.tbar-fill{height:100%;border-radius:99px;transition:width .6s}
+.sku-scroll{overflow-x:auto;padding:0 14px 4px;display:flex;gap:8px;scrollbar-width:none}
+.sku-scroll::-webkit-scrollbar{display:none}
+.sku-tile{flex-shrink:0;width:110px;background:var(--card);border:1.5px solid var(--card-border);border-radius:12px;padding:10px 8px;box-shadow:0 4px 0 var(--card-shadow);cursor:pointer;transform:translateY(0);transition:transform .08s,box-shadow .08s}
+.sku-tile:active{transform:translateY(4px);box-shadow:0 0 0 var(--card-shadow)}
+.sku-tile.fil{border-width:2.5px}
+.sku-lbl{font-size:10px;font-weight:700;color:var(--text2);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:5px}
+.sku-pct{font-size:13px;font-weight:900;font-family:'JetBrains Mono',monospace;text-align:center;margin-top:2px}
+.sku-sub{font-size:9px;color:var(--text3);text-align:center;margin-top:1px}
+.sec-hdr{display:flex;justify-content:space-between;align-items:center;padding:14px 14px 8px}
+.sec-title{font-size:13px;font-weight:800;letter-spacing:.04em;text-transform:uppercase;color:var(--text2)}
+.sec-count{font-size:11px;color:var(--text3);font-weight:600}
+.search-bar{margin:0 14px 4px}
+.si-wrap{position:relative}
+.si{width:100%;background:var(--card);border:1.5px solid var(--card-border);border-radius:10px;padding:11px 36px 11px 14px;font-family:'Inter',sans-serif;font-size:14px;color:var(--text);outline:none;box-shadow:0 4px 0 var(--card-shadow)}
+.si:focus{border-color:#94a3b8}
+.si-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:4px;display:none;line-height:1}
+.si-clear.show{display:block}
+.rep-list{padding:0 14px;display:flex;flex-direction:column;gap:10px}
+.rep-card{background:var(--card);border:1.5px solid var(--card-border);border-radius:14px;box-shadow:0 5px 0 var(--card-shadow);overflow:hidden}
+.rep-hdr{padding:12px;display:flex;align-items:center;gap:10px;cursor:pointer}
+.rep-av{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:900;color:#fff;flex-shrink:0;box-shadow:0 3px 0 rgba(0,0,0,.25)}
+.rep-info{flex:1;min-width:0}
+.rep-name{font-size:14px;font-weight:800;line-height:1.2}
+.rep-route{font-size:11px;color:var(--text3);margin-top:1px}
+.rep-ts{font-size:9px;color:var(--text3);margin-top:2px}
+.rep-pct{font-size:22px;font-weight:900;font-family:'JetBrains Mono',monospace}
+.rep-acct-count{font-size:10px;color:var(--text3);text-align:right;margin-top:2px}
+.rep-bar{height:5px;background:#e7e2db;border-radius:99px;overflow:hidden;margin:0 12px 8px}
+.rep-bar-fill{height:100%;border-radius:99px;transition:width .5s}
+.rep-sku-row{display:flex;gap:4px;padding:0 10px 10px;flex-wrap:wrap}
+.rsc{height:20px;padding:0 7px;border-radius:99px;font-size:9px;font-weight:700;color:#fff;display:inline-flex;align-items:center;gap:3px}
+.rsc.dim{opacity:.3}
+.drill-panel{border-top:1px solid var(--card-border);padding:10px 12px;display:none}
+.drill-panel.open{display:block}
+.drill-title{font-size:10px;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin-bottom:8px}
+.drill-search{width:100%;background:var(--input-bg);border:1.5px solid var(--card-border);border-radius:8px;padding:8px 10px;font-family:'Inter',sans-serif;font-size:12px;color:var(--text);outline:none;margin-bottom:8px}
+.mini-ac{background:var(--input-bg);border:1px solid var(--card-border);border-radius:9px;padding:8px 10px;display:flex;align-items:center;gap:8px;margin-bottom:5px;flex-wrap:wrap}
+.ma-name{flex:1;font-size:12px;font-weight:700;min-width:0}
+.ma-addr{font-size:9px;color:var(--text3);margin-top:1px}
+.ma-dots{display:flex;gap:3px}
+.ma-dot{width:9px;height:9px;border-radius:50%}
+.ma-pct{font-size:11px;font-weight:800;font-family:'JetBrains Mono',monospace;flex-shrink:0;min-width:32px;text-align:right}
+.ma-del{width:22px;height:22px;background:#fef2f2;color:#c1121f;border:none;border-radius:50%;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.ma-add-row{display:flex;gap:6px;margin-top:6px}
+.ma-add-inp{flex:1;background:var(--input-bg);border:1.5px solid var(--card-border);border-radius:8px;padding:7px 10px;font-family:'Inter',sans-serif;font-size:12px;color:var(--text);outline:none}
+.ma-add-btn{height:32px;padding:0 12px;background:#f0fdf4;color:#16a34a;border:1.5px solid #bbf7d0;border-radius:8px;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0}
+.empty{margin:40px 14px;text-align:center}
+.empty h3{font-size:18px;font-weight:900;margin-bottom:8px}
+.empty p{font-size:13px;color:var(--text2);line-height:1.6;max-width:280px;margin:0 auto 20px}
+.btn-refresh{height:44px;padding:0 24px;background:var(--brand);color:#fff;border:none;border-radius:10px;font-family:'Inter',sans-serif;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 0 var(--brand-shadow);transform:translateY(0);transition:transform .08s,box-shadow .08s}
+.btn-refresh:active{transform:translateY(4px);box-shadow:0 0 0 var(--brand-shadow)}
+.sku-mgr{margin:0 14px;background:var(--card);border:1.5px solid var(--card-border);border-radius:14px;padding:14px;box-shadow:0 4px 0 var(--card-shadow)}
+.sku-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--input-bg);border:1px solid var(--card-border);border-radius:9px;margin-bottom:6px}
+.sku-dot{width:12px;height:12px;border-radius:50%;flex-shrink:0}
+.sku-row-name{flex:1;font-size:12px;font-weight:700}
+.sku-del{background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;line-height:1;padding:0 2px}
+.sku-del:hover{color:var(--brand)}
+.add-sku-row{display:flex;gap:6px;align-items:center;margin-top:8px}
+.ski{flex:1;background:var(--input-bg);border:1.5px solid var(--card-border);border-radius:8px;padding:8px 10px;font-family:'Inter',sans-serif;font-size:12px;color:var(--text);outline:none}
+.ski:focus{border-color:#94a3b8}
+.sci{width:40px;height:36px;border:1.5px solid var(--card-border);border-radius:8px;cursor:pointer;background:none;padding:3px}
+.btn-as{height:36px;padding:0 14px;background:#eff6ff;color:#2563eb;border:none;border-radius:8px;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;box-shadow:0 3px 0 #bfdbfe;transform:translateY(0);transition:transform .08s}
+.btn-as:active{transform:translateY(3px);box-shadow:0 0 0 transparent}
+.info-box{background:#eff6ff;border:1.5px solid #bfdbfe;border-radius:10px;padding:10px 12px;font-size:12px;color:#1d4ed8;line-height:1.5;margin:0 14px 12px}
+.fil-banner{margin:8px 14px 0;background:#1c1917;color:#fff;border-radius:10px;padding:8px 12px;display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:600}
+.fil-banner.hide{display:none}
+.ban-x{background:none;border:none;color:#a8a29e;font-size:18px;cursor:pointer;line-height:1}
+.note-tag{display:inline-flex;align-items:center;gap:4px;margin-top:3px;background:#fef9f0;border:1px solid #e5d8c0;border-radius:5px;padding:2px 7px;font-size:10px;color:#78716c;line-height:1.4;max-width:100%}
+.note-tag-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.note-tag-text{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px}
+.ma-photo-thumb{width:22px;height:22px;border-radius:5px;object-fit:cover;cursor:pointer;border:1.5px solid var(--card-border);flex-shrink:0}
+.photo-viewer-bk{position:fixed;inset:0;background:rgba(0,0,0,.9);z-index:300;display:none;align-items:center;justify-content:center;flex-direction:column;padding:20px}
+.photo-viewer-bk.open{display:flex}
+.photo-viewer-img{max-width:100%;max-height:75vh;border-radius:12px;object-fit:contain}
+.photo-viewer-label{color:#fff;font-size:13px;font-weight:700;margin-top:14px;text-align:center}
+.photo-viewer-sub{color:#a8a29e;font-size:11px;margin-top:4px;text-align:center}
+.pv-close-btn{height:40px;padding:0 20px;border:none;border-radius:9px;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;background:#3a3530;color:#fff;margin-top:16px}
+.supervisor-label{font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;padding:0 2px;margin-top:2px}
+</style>
+</head>
+<body>
+<nav class="nav">
+  <div class="nav-logo">
+    <div class="nav-m">MGR</div>
+    <div><div class="nav-title">UDS Dashboard</div><div class="nav-sub">Manager View</div></div>
+  </div>
+  <div class="nav-center">
+    <button class="sync-badge" id="syncBadge" data-act="loadFromDB">&#8635; Refresh</button>
+  </div>
+  <div class="nav-right">
+    <button class="nav-btn active" id="btnTeam" data-act="showView" data-id="team">Team</button>
+    <button class="nav-btn" id="btnSKUs" data-act="showView" data-id="skus">SKUs</button>
+  </div>
+</nav>
+<div id="appRoot"></div>
+
+<div class="photo-viewer-bk" id="photoViewerBk">
+  <img class="photo-viewer-img" id="photoViewerImg" src="">
+  <div class="photo-viewer-label" id="photoViewerLabel"></div>
+  <div class="photo-viewer-sub" id="photoViewerSub"></div>
+  <button class="pv-close-btn" data-act="closePhotoViewer">Close</button>
+</div>
+
+<script>
+const SB_URL = 'https://alwhrpzozgnxfxvxgzwc.supabase.co';
+const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFsd2hycHpvemdueGZ4dnhnendjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MzU0MjMsImV4cCI6MjA5NzMxMTQyM30.kGdGX10yMoZC4-qvWbt42-Klv-kwMyY8z7Rr3UzuBPg';
+
+const REP_COLORS=['#c1121f','#2563eb','#7c3aed','#0d9488','#d97706','#475569','#be185d','#0891b2','#15803d','#9333ea'];
+
+const SUPERVISOR_MAP = {
+  'brandon corley': 'Jared Young',
+  'leobardo gaona': 'Jared Young',
+  'samuel william': 'Jared Young',
+  'trever howard': 'Jared Young',
+  'james moore': 'David Ferrell',
+  'mj grier': 'David Ferrell',
+  'samuel french': 'David Ferrell',
+  'victor mcdonal': 'David Ferrell',
+};
+function getSupervisor(repName){
+  const key=(repName||'').toLowerCase().trim();
+  return SUPERVISOR_MAP[key] || 'Unassigned';
+}
+
+let reps=[], masterSKUs=[], curView='team', skuFil=null, openDrills={}, teamFilter='all', drillSearch={};
+
+async function sbFetch(path,opts={}){
+  const res=await fetch(SB_URL+path,{headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal',...(opts.headers||{})},method:opts.method||'GET',body:opts.body});
+  if(!res.ok){const t=await res.text();throw new Error(t);}
+  const ct=res.headers.get('content-type')||'';
+  return ct.includes('json')?res.json():null;
+}
+
+function saveMeta(){localStorage.setItem('uds_mgr_skus_v2',JSON.stringify(masterSKUs));}
+function loadMeta(){
+  const s=localStorage.getItem('uds_mgr_skus_v2');
+  if(s)masterSKUs=JSON.parse(s);
+  else masterSKUs=[
+    {id:'snapple_rasp',name:'Snapple Raspberry',short:'Snapple Rasp',color:'#e63946'},
+    {id:'bloom_summer',name:'Bloom Summer Blast',short:'Bloom Summer',color:'#2563eb'},
+    {id:'ghost_stripes',name:'Ghost Stripes',short:'Ghost Stripes',color:'#7c3aed'},
+    {id:'ghost_7up',name:'Ghost 7UP',short:'Ghost 7UP',color:'#0d9488'},
+    {id:'c4_pink_lem',name:'C4 Pink Lemonade',short:'C4 Pink Lem',color:'#db2777'},
+  ];
+}
+
+async function loadFromDB(){
+  const badge=document.getElementById('syncBadge');
+  badge.className='sync-badge loading';badge.textContent='Loading...';
+  try{
+    const rows=await sbFetch('/rest/v1/uds_rep_syncs?select=*&order=synced_at.desc',{headers:{'Prefer':''}});
+    const seen=new Set();
+    reps=[];
+    (rows||[]).forEach(r=>{
+      const key=r.rep_name+'|'+r.route_name;
+      if(!seen.has(key)){seen.add(key);reps.push({...r.payload,syncedAt:r.synced_at,_repName:r.rep_name,_routeName:r.route_name});}
+    });
+    badge.className='sync-badge ok';badge.textContent='LIVE';
+    setTimeout(()=>{badge.className='sync-badge';badge.textContent='Refresh';},3000);
+    render();
+  }catch(e){
+    badge.className='sync-badge err';badge.textContent='ERROR';
+    setTimeout(()=>{badge.className='sync-badge';badge.textContent='Retry';},3000);
+    console.error(e);
+    render();
+  }
+}
+
+async function pushSKUsToDB(){
+  try{
+    for(const s of masterSKUs){
+      await sbFetch('/rest/v1/uds_master_skus?on_conflict=id',{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({id:s.id,name:s.name,short:s.short,color:s.color,sort_order:masterSKUs.indexOf(s)})});
+    }
+  }catch(e){console.error('SKU push failed',e);}
+}
+
+async function pushRepUpdate(rep){
+  try{
+    const payload={rep_name:rep._repName||rep.repName, route_name:rep._routeName||rep.routeName||'', payload:{repName:rep.repName,routeName:rep.routeName,skus:rep.skus,accounts:rep.accounts,exportedAt:new Date().toLocaleString()}};
+    await sbFetch('/rest/v1/uds_rep_syncs?on_conflict=rep_name,route_name',{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(payload)});
+  }catch(e){console.error('Rep push failed',e);alert('Could not save change to server. Check connection.');}
+}
+
+function showView(v){curView=v;document.getElementById('btnTeam').classList.toggle('active',v==='team');document.getElementById('btnSKUs').classList.toggle('active',v==='skus');render();}
+function render(){if(curView==='team')renderTeam();else renderSKUs();}
+
+function repColor(i){return REP_COLORS[i%REP_COLORS.length];}
+function repInitials(n){return(n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
+function acctDist(a){if(!masterSKUs.length)return 0;return Math.round(masterSKUs.filter(s=>a[s.id]).length/masterSKUs.length*100);}
+function repDist(rep){
+  const accts=rep.accounts||[];if(!accts.length||!masterSKUs.length)return 0;
+  const ids=masterSKUs.map(s=>s.id);
+  const have=accts.reduce((sum,a)=>sum+ids.filter(id=>a[id]).length,0);
+  return Math.round(have/(accts.length*ids.length)*100);
+}
+function dc(p){return p>=100?'#16a34a':p>=60?'#b45309':'#c1121f';}
+function donut(p,col,sz){sz=sz||48;const r=18,c=26,ci=2*Math.PI*r,d=ci*p/100;return'<svg viewBox="0 0 52 52" width="'+sz+'" height="'+sz+'"><circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="#e0d8cf" stroke-width="6"/><circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+col+'" stroke-width="6" stroke-linecap="round" stroke-dasharray="'+d+' '+ci+'" transform="rotate(-90 '+c+' '+c+')" style="transition:stroke-dasharray .6s"/><text x="'+c+'" y="'+(c+4)+'" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" font-weight="800" fill="#1c1917">'+p+'%</text></svg>';}
+function escH(t){return(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+
+function getFilteredReps(){
+  if(teamFilter==='all') return reps;
+  return reps.filter(function(r){return getSupervisor(r.repName)===teamFilter;});
+}
+
+function renderTeam(){
+  const root=document.getElementById('appRoot');
+  if(!reps.length){
+    root.innerHTML='<div class="hero"><div class="hero-title">Team <span>Dashboard</span></div><div class="hero-sub">Universal Distribution Sheet</div></div><div class="empty"><div style="font-size:48px;margin-bottom:12px">&#128202;</div><h3>No rep data yet</h3><p>Reps hit "Sync to Manager" in their Rep.html. Data appears here automatically.</p><button class="btn-refresh" data-act="loadFromDB">&#8635; Refresh Now</button></div>';
+    return;
+  }
+
+  const filteredReps=getFilteredReps();
+  const allAccts=filteredReps.flatMap(function(r){return r.accounts||[];});
+  const ov=filteredReps.length?Math.round(filteredReps.reduce(function(s,r){return s+repDist(r);},0)/filteredReps.length):0;
+  const barCol=ov>=80?'linear-gradient(90deg,#16a34a,#22c55e)':ov>=60?'linear-gradient(90deg,#d97706,#f59e0b)':'linear-gradient(90deg,#c1121f,#ef4444)';
+  const lastSync=reps.map(function(r){return r.syncedAt||r.exportedAt;}).filter(Boolean).sort().pop()||'never';
+
+  const jaredCount=reps.filter(function(r){return getSupervisor(r.repName)==='Jared Young';}).length;
+  const davidCount=reps.filter(function(r){return getSupervisor(r.repName)==='David Ferrell';}).length;
+
+  let h='<div class="hero"><div class="hero-title">Team <span>Dashboard</span></div><div class="hero-sub">Universal Distribution Sheet</div><div class="hero-ts">Last sync: '+lastSync+'</div></div>';
+
+  h+='<div class="team-tabs">';
+  h+='<button class="team-tab'+(teamFilter==='all'?' active':'')+'" data-act="setTeamFilter" data-id="all">Total Team<span class="tt-count">'+reps.length+' reps</span></button>';
+  h+='<button class="team-tab'+(teamFilter==='Jared Young'?' active':'')+'" data-act="setTeamFilter" data-id="Jared Young">Jared&#39;s Team<span class="tt-count">'+jaredCount+' reps</span></button>';
+  h+='<button class="team-tab'+(teamFilter==='David Ferrell'?' active':'')+'" data-act="setTeamFilter" data-id="David Ferrell">David&#39;s Team<span class="tt-count">'+davidCount+' reps</span></button>';
+  h+='</div>';
+
+  h+='<div class="sum-bar"><div class="sum-row"><div class="sum-big"><div class="sum-lbl">Team Distribution</div><div class="sum-val">'+ov+'<span>%</span></div></div><div class="sdiv"></div><div class="ss"><div class="ss-val" style="color:var(--brand)">'+filteredReps.length+'</div><div class="ss-lbl">Reps</div></div><div class="sdiv"></div><div class="ss"><div class="ss-val">'+allAccts.length+'</div><div class="ss-lbl">Accounts</div></div><div class="sdiv"></div><div class="ss"><div class="ss-val">'+masterSKUs.length+'</div><div class="ss-lbl">SKUs</div></div></div><div class="tbar"><div class="tbar-fill" style="width:'+ov+'%;background:'+barCol+'"></div></div></div>';
+
+  if(masterSKUs.length){
+    h+='<div class="sku-scroll">';
+    masterSKUs.forEach(function(s){
+      const have=allAccts.filter(function(a){return a[s.id];}).length;
+      const p=allAccts.length?Math.round(have/allAccts.length*100):0;
+      const isFil=skuFil===s.id;
+      h+='<div class="sku-tile'+(isFil?' fil':'')+'" style="'+(isFil?'border-color:'+s.color+';box-shadow:0 4px 0 '+s.color:'')+'" data-act="togSKUFil" data-skuid="'+s.id+'"><div style="display:flex;justify-content:center">'+donut(p,s.color,44)+'</div><div class="sku-lbl">'+s.short+'</div><div class="sku-pct" style="color:'+s.color+'">'+have+'/'+allAccts.length+'</div><div class="sku-sub">'+(isFil?'filtering':'tap filter')+'</div></div>';
+    });
+    h+='</div>';
+  }
+
+  if(skuFil){
+    const s=masterSKUs.find(function(x){return x.id===skuFil;});
+    const ms=allAccts.filter(function(a){return !a[s.id];}).length;
+    h+='<div class="fil-banner"><span>'+ms+' accounts missing '+s.name+'</span><button class="ban-x" data-act="clearSKUFil">&#x2715;</button></div>';
+  }
+
+  h+='<div class="sec-hdr"><div class="sec-title">Reps</div><div class="sec-count">'+filteredReps.length+' shown — tap to drill down</div></div>';
+
+  const existingSearchVal=document.getElementById('repSearch')?document.getElementById('repSearch').value:'';
+  h+='<div class="search-bar"><div class="si-wrap"><input class="si" id="repSearch" placeholder="Search reps or accounts..." value="'+escH(existingSearchVal)+'"><button class="si-clear" id="repSearchClear" data-act="clearRepSearch">&#x2715;</button></div></div>';
+
+  h+='<div class="rep-list">';
+
+  const searchTerm=existingSearchVal.toLowerCase().trim();
+
+  let visibleReps=filteredReps.slice().sort(function(a,b){return repDist(b)-repDist(a);});
+  if(searchTerm){
+    visibleReps=visibleReps.filter(function(rep){
+      if((rep.repName||'').toLowerCase().includes(searchTerm)) return true;
+      return (rep.accounts||[]).some(function(a){return a.name.toLowerCase().includes(searchTerm);});
+    });
+  }
+
+  if(!visibleReps.length){
+    h+='<div style="padding:30px 14px;text-align:center;color:var(--text3);font-size:13px;font-weight:600">No reps or accounts match "'+escH(searchTerm)+'"</div>';
+  }
+
+  visibleReps.forEach(function(rep){
+    const ri=reps.indexOf(rep);
+    const col=repColor(ri);
+    const p=repDist(rep);
+    const accts=rep.accounts||[];
+    const visAccts=skuFil?accts.filter(function(a){return !a[skuFil];}):accts;
+    const matchesAccountSearch=searchTerm && !(rep.repName||'').toLowerCase().includes(searchTerm) && accts.some(function(a){return a.name.toLowerCase().includes(searchTerm);});
+    const isDrillOpen=!!openDrills[ri] || matchesAccountSearch;
+
+    h+='<div class="rep-card">';
+    h+='<div class="rep-hdr" data-act="togDrill" data-ri="'+ri+'">';
+    h+='<div class="rep-av" style="background:'+col+'">'+repInitials(rep.repName||'?')+'</div>';
+    h+='<div class="rep-info"><div class="rep-name">'+(rep.repName||'Unknown')+'</div><div class="rep-route">'+(rep.routeName||'No route')+'</div><div class="supervisor-label">'+getSupervisor(rep.repName)+'</div><div class="rep-ts">Synced '+(rep.exportedAt||rep.syncedAt||'unknown')+'</div></div>';
+    h+='<div><div class="rep-pct" style="color:'+dc(p)+'">'+p+'%</div><div class="rep-acct-count">'+visAccts.length+' accts</div></div>';
+    h+='</div>';
+    h+='<div class="rep-bar"><div class="rep-bar-fill" style="width:'+p+'%;background:'+dc(p)+'"></div></div>';
+    h+='<div class="rep-sku-row">';
+    masterSKUs.forEach(function(s){
+      const have=accts.filter(function(a){return a[s.id];}).length;
+      const sp=accts.length?Math.round(have/accts.length*100):0;
+      h+='<div class="rsc'+(sp===0?' dim':'')+'" style="background:'+s.color+'">'+s.short+' '+sp+'%</div>';
+    });
+    h+='</div>';
+
+    h+='<div class="drill-panel'+(isDrillOpen?' open':'')+'" id="drill_'+ri+'">';
+    if(isDrillOpen){
+      const dSearch=(drillSearch[ri]!==undefined?drillSearch[ri]:searchTerm).toLowerCase();
+      let sortedAccts=(skuFil?accts.filter(function(a){return !a[skuFil];}):accts).slice().sort(function(a,b){return a.name.localeCompare(b.name);});
+      if(dSearch) sortedAccts=sortedAccts.filter(function(a){return a.name.toLowerCase().includes(dSearch);});
+
+      h+='<div class="drill-title">Account Breakdown'+(skuFil?' — missing '+masterSKUs.find(function(x){return x.id===skuFil;}).name:'')+' ('+sortedAccts.length+' of '+accts.length+')</div>';
+      h+='<input class="drill-search" id="drillSearch_'+ri+'" placeholder="Search '+escH(rep.repName||'rep')+'&#39;s accounts..." value="'+escH(drillSearch[ri]!==undefined?drillSearch[ri]:searchTerm)+'">';
+
+      h+='<div class="ma-add-row"><input class="ma-add-inp" id="newAcctName_'+ri+'" placeholder="Add account name..."><button class="ma-add-btn" data-act="addAccountToRep" data-ri="'+ri+'">+ Add</button></div>';
+
+      if(!sortedAccts.length){
+        h+='<div style="padding:14px 4px;text-align:center;color:var(--text3);font-size:11px">No accounts match</div>';
+      }
+      sortedAccts.forEach(function(a){
+        const ap=acctDist(a);
+        const dots=masterSKUs.map(function(s){return'<div class="ma-dot" style="background:'+(a[s.id]?s.color:'#e0d8cf')+'" title="'+s.name+((!a[s.id]&&a['note_'+s.id])?': '+a['note_'+s.id]:'')+'"></div>';}).join('');
+        const noteTags=masterSKUs.filter(function(s){return !a[s.id]&&a['note_'+s.id];}).map(function(s){return'<div class="note-tag"><div class="note-tag-dot" style="background:'+s.color+'"></div><div class="note-tag-text">'+s.short+': '+escH(a['note_'+s.id])+'</div></div>';}).join('');
+        const photoThumbs=masterSKUs.filter(function(s){return a['photo_'+s.id];}).map(function(s){return'<img class="ma-photo-thumb" src="'+a['photo_'+s.id]+'" data-act="viewMgrPhoto" data-ri="'+ri+'" data-acid="'+a.id+'" data-skuid="'+s.id+'" title="Photo: '+s.name+'">';}).join('');
+        h+='<div class="mini-ac"><div style="flex:1;min-width:0"><div class="ma-name">'+a.name+'</div>'+(a.addr?'<div class="ma-addr">'+a.addr+'</div>':'')+(noteTags?'<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">'+noteTags+'</div>':'')+(photoThumbs?'<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:4px">'+photoThumbs+'</div>':'')+'</div><div class="ma-dots">'+dots+'</div><div class="ma-pct" style="color:'+dc(ap)+'">'+ap+'%</div><button class="ma-del" data-act="deleteAccountFromRep" data-ri="'+ri+'" data-acid="'+a.id+'">&#x2715;</button></div>';
+      });
+    }
+    h+='</div></div>';
+  });
+
+  h+='</div>';
+
+  h+='<div style="padding:16px 14px 0">';
+  h+='<button data-act="removeAllReps" style="width:100%;height:36px;background:none;border:1.5px dashed #fca5a5;border-radius:10px;font-family:Inter,sans-serif;font-size:11px;font-weight:700;cursor:pointer;color:#c1121f">Clear All Rep Data</button>';
+  h+='</div>';
+
+  root.innerHTML=h;
+
+  const rs=document.getElementById('repSearch');
+  if(rs){ document.getElementById('repSearchClear').classList.toggle('show', rs.value.length>0); }
+  setTimeout(wireInputs, 0);
+}
+
+function setTeamFilter(f){teamFilter=f;render();}
+
+function onRepSearch(){
+  render();
+  setTimeout(function(){ const el=document.getElementById('repSearch'); if(el){el.focus(); el.setSelectionRange(el.value.length,el.value.length);} },0);
+}
+function clearRepSearch(){ const el=document.getElementById('repSearch'); if(el) el.value=''; render(); }
+
+function onDrillSearch(ri,val){
+  drillSearch[ri]=val; render();
+  setTimeout(function(){ const el=document.querySelector('#drill_'+ri+' .drill-search'); if(el){el.focus(); el.setSelectionRange(el.value.length,el.value.length);} },0);
+}
+
+function togDrill(ri){ openDrills[ri]=!openDrills[ri]; render(); }
+function togSKUFil(id){skuFil=skuFil===id?null:id;render();}
+
+async function addAccountToRep(ri){
+  const input=document.getElementById('newAcctName_'+ri);
+  const name=input.value.trim().toUpperCase();
+  if(!name)return;
+  const rep=reps[ri];
+  if(!rep.accounts) rep.accounts=[];
+  const o={id:'acct_mgr_'+Date.now(),name:name,addr:''};
+  (rep.skus||masterSKUs).forEach(function(s){o[s.id]=false;});
+  rep.accounts.push(o);
+  input.value='';
+  render();
+  await pushRepUpdate(rep);
+}
+
+async function deleteAccountFromRep(ri,acctId){
+  if(!confirm('Remove this account from the rep\'s list?'))return;
+  const rep=reps[ri];
+  rep.accounts=(rep.accounts||[]).filter(function(a){return a.id!==acctId;});
+  render();
+  await pushRepUpdate(rep);
+}
+
+function removeAllReps(){
+  if(!confirm('Clear all rep data from the dashboard?')) return;
+  reps=[];
+  render();
+}
+
+function renderSKUs(){
+  const root=document.getElementById('appRoot');
+  let h='<div class="hero"><div class="hero-title">SKU <span>Manager</span></div><div class="hero-sub">Master innovation list for your team</div></div>';
+  h+='<div class="info-box">Changes here sync to reps automatically on their next Sync. Reps will see new SKUs added to their account cards.</div>';
+  h+='<div class="sku-mgr"><div style="font-size:13px;font-weight:700;margin-bottom:10px">Active SKUs ('+masterSKUs.length+')</div>';
+  masterSKUs.forEach(function(s){
+    h+='<div class="sku-row"><div class="sku-dot" style="background:'+s.color+'"></div><div class="sku-row-name">'+s.name+'</div><button class="sku-del" data-act="delMSKU" data-skuid="'+s.id+'">&#x2715;</button></div>';
+  });
+  h+='<div class="add-sku-row"><input class="ski" id="newSKUName" placeholder="New SKU name..."><input type="color" class="sci" id="newSKUColor" value="#e63946"><button class="btn-as" data-act="addMSKU">+ Add</button></div></div>';
+  root.innerHTML=h;
+  setTimeout(wireInputs, 0);
+}
+
+async function addMSKU(){
+  const name=document.getElementById('newSKUName').value.trim();if(!name)return;
+  const color=document.getElementById('newSKUColor').value;
+  const id=name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')+Date.now();
+  masterSKUs.push({id:id,name:name,short:name.length>12?name.slice(0,12)+'...':name,color:color});
+  saveMeta();await pushSKUsToDB();render();
+}
+async function delMSKU(id){
+  if(!confirm('Remove this SKU from the master list?'))return;
+  masterSKUs=masterSKUs.filter(function(s){return s.id!==id;});
+  saveMeta();
+  try{await sbFetch('/rest/v1/uds_master_skus?id=eq.'+id,{method:'DELETE'});}catch(e){}
+  render();
+}
+
+function viewMgrPhoto(ri,acctId,skuId){
+  const rep=reps[ri];
+  const a=(rep.accounts||[]).find(function(x){return x.id===acctId;});
+  const s=masterSKUs.find(function(x){return x.id===skuId;});
+  if(!a||!s||!a['photo_'+skuId])return;
+  document.getElementById('photoViewerImg').src=a['photo_'+skuId];
+  document.getElementById('photoViewerLabel').textContent=a.name+' — '+s.name;
+  document.getElementById('photoViewerSub').textContent=(rep.repName||'')+(a['photo_ts_'+skuId]?' · Taken '+a['photo_ts_'+skuId]:'')+(a[skuId]?' · Placed':' · Not yet placed');
+  document.getElementById('photoViewerBk').classList.add('open');
+}
+function closePhotoViewer(){ document.getElementById('photoViewerBk').classList.remove('open'); }
+document.getElementById('photoViewerBk').addEventListener('click', function(e){ if(e.target===this) closePhotoViewer(); });
+
+loadMeta();
+render();
+loadFromDB();
+setInterval(loadFromDB, 60000);
+
+// ---- helper so banner X can clear SKU filter with no args ----
+function clearSKUFil(){ togSKUFil(null); }
+
+// ---- delegated click handler (replaces all onclick= attributes) ----
+document.addEventListener('click', function(e){
+  const el = e.target.closest('[data-act]');
+  if(!el) return;
+  const act = el.getAttribute('data-act');
+  const id  = el.getAttribute('data-id');
+  const ri  = el.getAttribute('data-ri');
+  const acid = el.getAttribute('data-acid');
+  const skuid = el.getAttribute('data-skuid');
+
+  if(act === 'loadFromDB')        loadFromDB();
+  else if(act === 'showView')     showView(id);
+  else if(act === 'closePhotoViewer') closePhotoViewer();
+  else if(act === 'setTeamFilter') setTeamFilter(id);
+  else if(act === 'togSKUFil')    togSKUFil(skuid);
+  else if(act === 'clearSKUFil')  clearSKUFil();
+  else if(act === 'clearRepSearch') clearRepSearch();
+  else if(act === 'togDrill')     togDrill(Number(ri));
+  else if(act === 'addAccountToRep') addAccountToRep(Number(ri));
+  else if(act === 'deleteAccountFromRep') deleteAccountFromRep(Number(ri), acid);
+  else if(act === 'viewMgrPhoto') viewMgrPhoto(Number(ri), acid, skuid);
+  else if(act === 'removeAllReps') removeAllReps();
+  else if(act === 'delMSKU')      delMSKU(skuid);
+  else if(act === 'addMSKU')      addMSKU();
+});
+
+// ---- wire input events on dynamically-rendered inputs after each render ----
+// Called via setTimeout(wireInputs,0) at the end of renderTeam/renderSKUs
+// so the new DOM is present before we query it.
+function wireInputs(){
+  const rs = document.getElementById('repSearch');
+  if(rs && !rs._wired){ rs.addEventListener('input', onRepSearch); rs._wired=true; }
+  document.querySelectorAll('[id^="drillSearch_"]').forEach(function(inp){
+    if(!inp._wired){
+      const ri = Number(inp.id.replace('drillSearch_',''));
+      inp.addEventListener('input', function(){ onDrillSearch(ri, this.value); });
+      inp._wired = true;
+    }
+  });
+  const sn = document.getElementById('newSKUName');
+  if(sn && !sn._wired){ sn.addEventListener('input', function(){ }); sn._wired=true; }
+}
+</script>
+</body>
+</html>
