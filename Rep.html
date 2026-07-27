@@ -63,8 +63,7 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
 .badd:active{box-shadow:0 0 0 transparent}
 .bsku{background:#eff6ff;color:#2563eb;box-shadow:0 3px 0 #bfdbfe}
 .bsku:active{box-shadow:0 0 0 transparent}
-.del-skus{margin-top:10px;display:none}
-.del-skus.show{display:block}
+
 .del-lbl{font-size:10px;font-weight:700;letter-spacing:.08em;color:var(--text3);text-transform:uppercase;margin-bottom:6px}
 .del-pills{display:flex;flex-wrap:wrap;gap:6px}
 .dp{height:28px;padding:0 12px;border:none;border-radius:99px;font-family:'Inter',sans-serif;font-size:11px;font-weight:700;cursor:pointer;color:#fff;transform:translateY(0);transition:transform .08s}
@@ -210,9 +209,8 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
   <div class="arow">
     <button class="abtn bdel" id="btnDel" data-act="togDel">&#128465; Delete</button>
     <button class="abtn badd" data-act="openAA">+ Account</button>
-    <button class="abtn bsku" data-act="openAS">+ SKU</button>
   </div>
-  <div class="del-skus" id="delSkus"><div class="del-lbl">Remove SKU:</div><div class="del-pills" id="delPills"></div></div>
+
   <button class="breset" id="btnReset" data-act="doReset">&#9888;&#65039; Reset all data to defaults</button>
 </div>
 <div class="rc" id="rc"></div>
@@ -236,22 +234,7 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
   </div>
 </div>
 
-<!-- ADD SKU -->
-<div class="mbk" id="mAS">
-  <div class="msh">
-    <div class="mhnd"></div>
-    <div class="mtit">Add Innovation SKU</div>
-    <div class="mf"><div class="ml">SKU Name</div><input class="mi" id="asname" placeholder="e.g. Ghost Orange Cream"></div>
-    <div class="mf">
-      <div class="ml">Color</div>
-      <div class="crow"><input type="color" class="ci" id="ascolor" value="#e63946"><div class="pprev" id="spp" style="background:#e63946">New SKU</div></div>
-    </div>
-    <div class="mbtnr">
-      <button class="mbtn mcanc" data-act="closeM" data-id="mAS">Cancel</button>
-      <button class="mbtn mconf" data-act="confAS">Add SKU</button>
-    </div>
-  </div>
-</div>
+
 
 <!-- SETUP / SWITCH USER -->
 <div class="mbk" id="mSU">
@@ -540,10 +523,9 @@ function rDayRow(){
   }).join('');
 }
 function rDelPills(){
-  const w=document.getElementById('delSkus'),p=document.getElementById('delPills'),br=document.getElementById('btnReset');
-  if(!dMode){w.classList.remove('show');br.classList.remove('show');return;}
-  w.classList.add('show');br.classList.add('show');
-  p.innerHTML=skus.map(s=>'<button class="dp" style="background:'+s.color+'" data-act="delSKU" data-id="'+escHtml(s.id)+'">X '+s.short+'</button>').join('');
+  const br=document.getElementById('btnReset');
+  if(!dMode){br.classList.remove('show');return;}
+  br.classList.add('show');
 }
 function escHtml(t){return t.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function acctCard(a){
@@ -597,7 +579,7 @@ function togDay(d){aDayF=aDayF===d?null:d;render();}
 function togSF(id){aSF=aSF===id?null:id;render();}
 function clearSF(){aSF=null;render();}
 function togDel(){dMode=!dMode;document.getElementById('btnDel').classList.toggle('on',dMode);render();}
-function delSKU(id){if(!confirm('Remove this SKU?'))return;skus=skus.filter(s=>s.id!==id);accts.forEach(a=>delete a[id]);saveLocal();render();}
+
 function delAcct(id){if(!confirm('Remove this account?'))return;accts=accts.filter(a=>a.id!==id);saveLocal();render();}
 function doReset(){if(!confirm('Reset all data to defaults? This restores your original account list from when you first set up.'))return; selectUser(repName); }
 
@@ -611,14 +593,7 @@ function confAA(){
 }
 
 // --- ADD SKU ------------------------------------------------------------------
-function openAS(){document.getElementById('asname').value='';document.getElementById('ascolor').value='#e63946';updSP();document.getElementById('mAS').classList.add('open');}
-function updSP(){const n=document.getElementById('asname').value||'New SKU',c=document.getElementById('ascolor').value,p=document.getElementById('spp');p.style.background=c;p.textContent=n;}
-function confAS(){
-  const name=document.getElementById('asname').value.trim();if(!name){alert('Enter SKU name');return;}
-  const color=document.getElementById('ascolor').value;
-  const id=name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')+Date.now();
-  skus.push({id,name,short:name.length>12?name.slice(0,12)+'...':name,color});accts.forEach(a=>a[id]=false);saveLocal();render();closeM('mAS');
-}
+
 
 // --- SWITCH USER --------------------------------------------------------------
 function openSetup(){document.getElementById('mSU').classList.add('open');}
@@ -741,7 +716,6 @@ document.addEventListener('click', function(e){
   if(act === 'togSF') togSF(id);
   else if(act === 'togDay') togDay(id);
   else if(act === 'clearSF') clearSF();
-  else if(act === 'delSKU') delSKU(id);
   else if(act === 'togSKU') togSKU(aid, sid);
   else if(act === 'openNote') openNote(aid, sid);
   else if(act === 'openCamera') openCamera(aid, sid);
@@ -751,12 +725,10 @@ document.addEventListener('click', function(e){
   else if(act === 'clearSearch') clearSearch();
   else if(act === 'togDel') togDel();
   else if(act === 'openAA') openAA();
-  else if(act === 'openAS') openAS();
   else if(act === 'doReset') doReset();
   else if(act === 'doSync') doSync();
   else if(act === 'openSetup') openSetup();
   else if(act === 'confAA') confAA();
-  else if(act === 'confAS') confAS();
   else if(act === 'confSwitchUser') confSwitchUser();
   else if(act === 'clearNote') clearNote();
   else if(act === 'saveNote') saveNote();
@@ -770,8 +742,6 @@ document.addEventListener('click', function(e){
 // 'input'/'change' rather than 'click', so they're wired directly here instead
 // of inline, for the same cross-browser-safety reason as the delegated handler above.
 document.getElementById('si').addEventListener('input', onSearchInput);
-document.getElementById('asname').addEventListener('input', updSP);
-document.getElementById('ascolor').addEventListener('input', updSP);
 document.getElementById('photoInput').addEventListener('change', function(){ handlePhotoFile(this); });
 
 // --- INIT ---------------------------------------------------------------------
