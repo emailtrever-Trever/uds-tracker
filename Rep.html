@@ -451,11 +451,20 @@ async function doSync() {
   try {
     const masterRows = await sbFetch('/rest/v1/uds_master_skus?select=*&order=sort_order', { headers: { 'Prefer': '' } });
     if (masterRows && masterRows.length) {
-      masterRows.forEach(ms => {
-        if (!skus.find(s => s.id === ms.id)) {
-          skus.push({ id: ms.id, name: ms.name, short: ms.short, color: ms.color });
-          accts.forEach(a => { if (!(ms.id in a)) a[ms.id] = false; });
-        }
+      // Replace local SKU list entirely from Supabase — this cleans up any
+      // duplicates or old SKUs that accumulated on the rep's device.
+      // Existing toggle data (true/false per account) is preserved if the SKU id matches.
+      const newSkus = masterRows.map(ms => ({ id: ms.id, name: ms.name, short: ms.short, color: ms.color }));
+      skus = newSkus;
+      accts.forEach(a => {
+        // add missing keys for new SKUs
+        skus.forEach(s => { if (!(s.id in a)) a[s.id] = false; });
+        // remove keys for SKUs no longer in master list
+        Object.keys(a).forEach(k => {
+          if (k !== 'id' && k !== 'name' && k !== 'addr' && !k.startsWith('note_') && !k.startsWith('photo_')) {
+            if (!skus.find(s => s.id === k)) delete a[k];
+          }
+        });
       });
     }
     const payload = { rep_name: repName, route_name: routeName || '', payload: { repName, routeName, skus, accounts: accts, exportedAt: new Date().toLocaleString() } };
