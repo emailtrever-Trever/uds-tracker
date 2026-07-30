@@ -183,17 +183,7 @@ async function sbFetch(path,opts={}){
 }
 
 function saveMeta(){localStorage.setItem('uds_mgr_skus_v2',JSON.stringify(masterSKUs));}
-function loadMeta(){
-  const s=localStorage.getItem('uds_mgr_skus_v2');
-  if(s)masterSKUs=JSON.parse(s);
-  else masterSKUs=[
-    {id:'snapple_rasp',name:'Snapple Raspberry',short:'Snapple Rasp',color:'#e63946'},
-    {id:'bloom_summer',name:'Bloom Summer Blast',short:'Bloom Summer',color:'#2563eb'},
-    {id:'ghost_stripes',name:'Ghost Stripes',short:'Ghost Stripes',color:'#7c3aed'},
-    {id:'ghost_7up',name:'Ghost 7UP',short:'Ghost 7UP',color:'#0d9488'},
-    {id:'c4_pink_lem',name:'C4 Pink Lemonade',short:'C4 Pink Lem',color:'#db2777'},
-  ];
-}
+function loadMeta(){masterSKUs=[];}
 
 async function loadFromDB(){
   const badge=document.getElementById('syncBadge');
@@ -470,6 +460,7 @@ function viewMgrPhoto(ri,acctId,skuId){
 function closePhotoViewer(){ document.getElementById('photoViewerBk').classList.remove('open'); }
 document.getElementById('photoViewerBk').addEventListener('click', function(e){ if(e.target===this) closePhotoViewer(); });
 
+localStorage.removeItem('uds_mgr_skus_v2'); // clear stale cache — Supabase is source of truth
 loadMeta();
 render();
 loadFromDB();
