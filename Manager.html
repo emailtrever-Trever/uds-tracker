@@ -199,6 +199,12 @@ async function loadFromDB(){
   const badge=document.getElementById('syncBadge');
   badge.className='sync-badge loading';badge.textContent='Loading...';
   try{
+    // Pull canonical SKU list from Supabase first
+    const skuRows=await sbFetch('/rest/v1/uds_master_skus?select=*&order=sort_order',{headers:{'Prefer':''}});
+    if(skuRows&&skuRows.length){
+      masterSKUs=skuRows.map(function(r){return{id:r.id,name:r.name,short:r.short,color:r.color};});
+      saveMeta();
+    }
     const rows=await sbFetch('/rest/v1/uds_rep_syncs?select=*&order=synced_at.desc',{headers:{'Prefer':''}});
     const seen=new Set();
     reps=[];
