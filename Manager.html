@@ -140,6 +140,30 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
 .rep-bar{height:3px;background:#e2e8f0;border-radius:99px;overflow:hidden;margin:0 18px 6px;}
 .rep-bar-fill{height:100%;border-radius:99px;transition:width .5s;}
 
+/* Insights section */
+.insights-section{margin-bottom:22px;}
+.insights-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.insights-card{overflow:hidden;}
+.insights-wide{grid-column:1/-1;}
+
+/* SKU chip buttons */
+.rsc-btn{height:22px;padding:0 8px;border:none;border-radius:99px;font-size:9px;font-weight:800;color:#fff;cursor:pointer;display:inline-flex;align-items:center;gap:3px;letter-spacing:.02em;transition:box-shadow .15s,opacity .15s;font-family:'Inter',sans-serif;}
+.rsc-btn.dim{opacity:.25;}
+.rsc-btn.sku-open{opacity:1;}
+
+/* SKU drill-down */
+.sku-drill-panel{padding:0 0 12px;}
+.sku-split{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 14px;}
+.sku-split-col{background:var(--bg);border-radius:10px;padding:10px;}
+.sku-split-hdr{font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;}
+.sku-acct-row{padding:7px 0;border-bottom:1px solid var(--card-border);}
+.sku-acct-row:last-child{border-bottom:none;}
+.sku-acct-name{font-size:12px;font-weight:700;color:var(--text);}
+.sku-acct-note{font-size:10px;color:var(--text3);margin-top:2px;line-height:1.4;}
+.sku-acct-note.no-note{color:#cbd5e1;font-style:italic;}
+.sku-acct-photo-tag{font-size:9px;font-weight:700;background:#eff6ff;color:var(--brand);padding:1px 6px;border-radius:99px;margin-top:2px;display:inline-block;}
+.sku-empty-state{font-size:11px;color:var(--text3);padding:8px 0;text-align:center;}
+
 /* SKU chips under rep */
 .rep-sku-row{display:flex;gap:5px;padding:0 16px 12px;flex-wrap:wrap;}
 .rsc{height:22px;padding:0 8px;border-radius:99px;font-size:9px;font-weight:800;color:#fff;display:inline-flex;align-items:center;gap:3px;letter-spacing:.02em;}
@@ -357,7 +381,7 @@ function getSupervisor(repName){
   return SUPERVISOR_MAP[key] || 'Unassigned';
 }
 
-let reps=[], masterSKUs=[], curView='team', skuFil=null, openDrills={}, teamFilter='all', drillSearch={};
+let reps=[], masterSKUs=[], curView='team', skuFil=null, openDrills={}, openSkuDrills={}, teamFilter='all', drillSearch={};
 
 async function sbFetch(path,opts={}){
   const res=await fetch(SB_URL+path,{headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal',...(opts.headers||{})},method:opts.method||'GET',body:opts.body});
@@ -506,6 +530,116 @@ function renderTeam(){
   }
 
   // Main grid
+  // ── INSIGHTS / GRAPHS SECTION ──────────────────────────────────────────
+  if(filteredReps.length && masterSKUs.length){
+    h+='<div class="insights-section">';
+    h+='<div class="sec-hdr" style="margin-bottom:16px"><div class="sec-title">Team Insights</div><div class="sec-count">'+filteredReps.length+' reps · '+allAccts.length+' accounts</div></div>';
+    h+='<div class="insights-grid">';
+
+    // ── 1. STACKED BAR CHART — rep distribution by SKU ──
+    h+='<div class="card insights-card">';
+    h+='<div class="card-hdr"><div class="card-title">Distribution by Rep</div><div style="font-size:10px;color:var(--text3)">stacked by SKU</div></div>';
+    const barH=160,barW=Math.max(36,Math.floor(Math.min(260,filteredReps.length*56)/filteredReps.length));
+    h+='<div style="display:flex;align-items:flex-end;gap:8px;height:'+(barH+28)+'px;padding:0 4px;overflow-x:auto;">';
+    filteredReps.forEach(function(rep){
+      const accts=rep.accounts||[];
+      if(!accts.length)return;
+      const repNm=(rep.repName||rep._repName||'Rep').split(' ').map(function(w){return w[0];}).join('').slice(0,3);
+      const totalSlots=accts.length*masterSKUs.length;
+      h+='<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex-shrink:0;width:'+barW+'px;">';
+      h+='<div style="display:flex;flex-direction:column-reverse;width:'+barW+'px;height:'+barH+'px;border-radius:6px 6px 0 0;overflow:hidden;position:relative;">';
+      masterSKUs.forEach(function(s){
+        const cnt=accts.filter(function(a){return a[s.id];}).length;
+        const pct=accts.length?cnt/accts.length*100:0;
+        const segH=Math.round(pct/100*barH);
+        if(segH<1)return;
+        h+='<div title="'+escH(s.short)+': '+Math.round(pct)+'%" style="width:100%;height:'+segH+'px;background:'+s.color+';flex-shrink:0;"></div>';
+      });
+      // grey remainder
+      const filledH=masterSKUs.reduce(function(sum,s){return sum+Math.round((accts.length?accts.filter(function(a){return a[s.id];}).length/accts.length*100:0)/100*barH);},0);
+      const remH=barH-filledH;
+      if(remH>0)h+='<div style="width:100%;flex:1;background:#f1f5f9;"></div>';
+      h+='</div>';
+      const repPct=repDist(rep);
+      h+='<div style="font-size:9px;font-weight:800;color:'+dc(repPct)+'">'+repPct+'%</div>';
+      h+='<div style="font-size:9px;font-weight:700;color:var(--text3);text-align:center;">'+escH(repNm)+'</div>';
+      h+='</div>';
+    });
+    h+='</div>';
+    // legend
+    h+='<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;">';
+    masterSKUs.forEach(function(s){h+='<div style="display:flex;align-items:center;gap:4px;font-size:10px;font-weight:600;color:var(--text2)"><div style="width:10px;height:10px;border-radius:3px;background:'+s.color+';flex-shrink:0"></div>'+escH(s.short)+'</div>';});
+    h+='</div>';
+    h+='</div>';
+
+    // ── 2. REP LEADERBOARD ──
+    h+='<div class="card insights-card">';
+    h+='<div class="card-hdr"><div class="card-title">Rep Leaderboard</div><div style="font-size:10px;color:var(--text3)">ranked by overall %</div></div>';
+    const ranked=[...filteredReps].sort(function(a,b){return repDist(b)-repDist(a);});
+    ranked.forEach(function(rep,idx){
+      const pct=repDist(rep),col=pct>=80?'#16a34a':pct>=60?'#d97706':'#dc2626';
+      const medal=idx===0?'🥇':idx===1?'🥈':idx===2?'🥉':'';
+      h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">';
+      h+='<div style="width:20px;font-size:13px;text-align:center;">'+(medal||'<span style="font-size:11px;font-weight:800;color:var(--text3)">'+(idx+1)+'</span>')+'</div>';
+      h+='<div style="flex:1;min-width:0;">';
+      h+='<div style="font-size:12px;font-weight:700;color:var(--text);margin-bottom:4px;">'+escH(rep.repName||rep._repName||'Rep')+'</div>';
+      h+='<div style="height:7px;background:#f1f5f9;border-radius:99px;overflow:hidden;"><div style="height:100%;width:'+pct+'%;background:'+col+';border-radius:99px;transition:width .6s;"></div></div>';
+      h+='</div>';
+      h+='<div style="font-size:13px;font-weight:800;font-family:JetBrains Mono,monospace;color:'+col+';min-width:38px;text-align:right;">'+pct+'%</div>';
+      h+='</div>';
+    });
+    h+='</div>';
+
+    // ── 3. SKU HEAT MAP ──
+    h+='<div class="card insights-card insights-wide">';
+    h+='<div class="card-hdr"><div class="card-title">SKU Heat Map</div><div style="font-size:10px;color:var(--text3)">rep × SKU penetration</div></div>';
+    h+='<div style="overflow-x:auto;">';
+    h+='<table style="width:100%;border-collapse:separate;border-spacing:4px;font-size:11px;">';
+    // header row
+    h+='<tr><td style="font-size:10px;color:var(--text3);font-weight:700;padding:4px 8px;">Rep</td>';
+    masterSKUs.forEach(function(s){h+='<td style="text-align:center;padding:4px 6px;font-size:9px;font-weight:800;color:'+s.color+';min-width:64px;max-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+escH(s.short)+'</td>';});
+    h+='<td style="text-align:center;padding:4px 6px;font-size:9px;font-weight:800;color:var(--text2);">OVERALL</td></tr>';
+    filteredReps.forEach(function(rep){
+      const accts=rep.accounts||[];
+      h+='<tr>';
+      h+='<td style="font-size:12px;font-weight:700;color:var(--text);padding:4px 8px;white-space:nowrap;">'+escH((rep.repName||rep._repName||'Rep').split(' ')[0])+'</td>';
+      masterSKUs.forEach(function(s){
+        const cnt=accts.length?accts.filter(function(a){return a[s.id];}).length:0;
+        const p=accts.length?Math.round(cnt/accts.length*100):0;
+        const bg=p>=80?'rgba(22,163,74,.15)':p>=60?'rgba(217,119,6,.15)':'rgba(220,38,38,.12)';
+        const tc=p>=80?'#15803d':p>=60?'#b45309':'#b91c1c';
+        h+='<td style="text-align:center;padding:5px 4px;"><div style="background:'+bg+';color:'+tc+';font-size:11px;font-weight:800;font-family:JetBrains Mono,monospace;border-radius:7px;padding:5px 4px;">'+p+'%</div></td>';
+      });
+      const ov=repDist(rep),ovcol=ov>=80?'#15803d':ov>=60?'#b45309':'#b91c1c',ovbg=ov>=80?'rgba(22,163,74,.2)':ov>=60?'rgba(217,119,6,.2)':'rgba(220,38,38,.18)';
+      h+='<td style="text-align:center;padding:5px 4px;"><div style="background:'+ovbg+';color:'+ovcol+';font-size:12px;font-weight:900;font-family:JetBrains Mono,monospace;border-radius:7px;padding:5px 4px;">'+ov+'%</div></td>';
+      h+='</tr>';
+    });
+    h+='</table>';
+    h+='</div></div>';
+
+    // ── 4. SKU DONUT ROW ──
+    h+='<div class="card insights-card insights-wide">';
+    h+='<div class="card-hdr"><div class="card-title">SKU Penetration — All Accounts</div><div style="font-size:10px;color:var(--text3)">tap a SKU card above to filter</div></div>';
+    h+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;">';
+    masterSKUs.forEach(function(s){
+      const have=allAccts.filter(function(a){return a[s.id];}).length;
+      const p=allAccts.length?Math.round(have/allAccts.length*100):0;
+      const missing=allAccts.length-have;
+      const r=28,c=34,ci=2*Math.PI*r,d=ci*p/100;
+      const svg='<svg viewBox="0 0 68 68" width="80" height="80"><circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="#f1f5f9" stroke-width="8"/><circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+s.color+'" stroke-width="8" stroke-linecap="round" stroke-dasharray="'+d+' '+ci+'" transform="rotate(-90 '+c+' '+c+')"/><text x="'+c+'" y="'+(c+4)+'" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="13" font-weight="900" fill="#0f172a">'+p+'%</text></svg>';
+      h+='<div style="background:var(--bg);border-radius:12px;padding:14px;text-align:center;border:1.5px solid var(--card-border);">';
+      h+='<div style="display:flex;justify-content:center;margin-bottom:8px;">'+svg+'</div>';
+      h+='<div style="font-size:11px;font-weight:700;color:var(--text2);margin-bottom:4px;">'+escH(s.short)+'</div>';
+      h+='<div style="font-size:10px;color:'+s.color+';font-weight:800;">'+have+' placed</div>';
+      h+='<div style="font-size:10px;color:var(--red);font-weight:700;">'+missing+' missing</div>';
+      h+='</div>';
+    });
+    h+='</div></div>';
+
+    h+='</div>'; // insights-grid
+    h+='</div>'; // insights-section
+  }
+
   h+='<div class="main-grid">';
 
   // Left — rep list
@@ -519,8 +653,8 @@ function renderTeam(){
     const pct=repDist(rep);
     const col=pct>=80?'#16a34a':pct>=60?'#d97706':'#dc2626';
     const accts=rep.accounts||[];
-    const repColor_=repColor(ri);
     const isOpen=!!openDrills[actualRi];
+    const openSkuId=openSkuDrills[actualRi]||null;
     const visAccts=skuFil?accts.filter(function(a){return !a[skuFil];}):accts;
 
     h+='<div class="rep-card">';
@@ -536,16 +670,61 @@ function renderTeam(){
     // Progress bar
     h+='<div class="rep-bar"><div class="rep-bar-fill" style="width:'+pct+'%;background:'+col+'"></div></div>';
 
-    // SKU chips
+    // SKU chips — now tappable to drill in/out
     h+='<div class="rep-sku-row">';
     masterSKUs.forEach(function(s){
       const have=accts.filter(function(a){return a[s.id];}).length;
       const sp=accts.length?Math.round(have/accts.length*100):0;
-      h+='<span class="rsc'+(sp===0?' dim':'')+'" style="background:'+s.color+'">'+escH(s.short)+' '+sp+'%</span>';
+      const isSkuOpen=isOpen&&openSkuId===s.id;
+      h+='<button class="rsc-btn'+(sp===0?' dim':'')+(isSkuOpen?' sku-open':'')+'" data-act="togSkuDrill" data-ri="'+actualRi+'" data-skuid="'+escH(s.id)+'" style="background:'+s.color+(isSkuOpen?';box-shadow:0 0 0 2px #0f172a,0 0 0 4px '+s.color:'')+'">'+escH(s.short)+' '+sp+'%</button>';
     });
     h+='</div>';
 
-    // Drill panel
+    // SKU drill-down — IN / MISSING split
+    if(isOpen&&openSkuId){
+      const s=masterSKUs.find(function(x){return x.id===openSkuId;});
+      if(s){
+        const inAccts=accts.filter(function(a){return a[s.id];});
+        const missingAccts=accts.filter(function(a){return !a[s.id];});
+        h+='<div class="sku-drill-panel" style="border-top:2px solid '+s.color+'20;">';
+        h+='<div style="display:flex;align-items:center;gap:8px;padding:10px 16px 8px;"><div style="width:10px;height:10px;border-radius:50%;background:'+s.color+';flex-shrink:0;"></div><div style="font-size:12px;font-weight:800;color:'+s.color+'">'+escH(s.name)+'</div><div style="margin-left:auto;font-size:10px;color:var(--text3)">tap chip again to close</div></div>';
+        h+='<div class="sku-split">';
+
+        // IN column
+        h+='<div class="sku-split-col sku-in">';
+        h+='<div class="sku-split-hdr" style="color:var(--green)">✓ In ('+inAccts.length+')</div>';
+        if(inAccts.length){
+          inAccts.forEach(function(a){
+            const note=a['note_'+s.id];const photo=!!a['photo_'+s.id];
+            h+='<div class="sku-acct-row sku-acct-in">';
+            h+='<div class="sku-acct-name">'+escH(a.name)+'</div>';
+            if(note)h+='<div class="sku-acct-note">📝 '+escH(note.slice(0,40))+'</div>';
+            if(photo)h+='<span class="sku-acct-photo-tag">📷 photo</span>';
+            h+='</div>';
+          });
+        }else{h+='<div class="sku-empty-state">None placed yet</div>';}
+        h+='</div>';
+
+        // MISSING column
+        h+='<div class="sku-split-col sku-missing-col">';
+        h+='<div class="sku-split-hdr" style="color:var(--red)">✗ Missing ('+missingAccts.length+')</div>';
+        if(missingAccts.length){
+          missingAccts.forEach(function(a){
+            const note=a['note_'+s.id];
+            h+='<div class="sku-acct-row sku-acct-miss">';
+            h+='<div class="sku-acct-name">'+escH(a.name)+'</div>';
+            if(note)h+='<div class="sku-acct-note">📝 '+escH(note.slice(0,40))+'</div>';
+            else h+='<div class="sku-acct-note no-note">no note</div>';
+            h+='</div>';
+          });
+        }else{h+='<div class="sku-empty-state" style="color:var(--green)">✓ 100% placed!</div>';}
+        h+='</div>';
+
+        h+='</div></div>';
+      }
+    }
+
+    // Account drill panel
     h+='<div class="drill-panel'+(isOpen?' open':'')+'">';
     h+='<div class="drill-title">Account Breakdown'+(skuFil?' — missing '+escH(masterSKUs.find(function(x){return x.id===skuFil;})||{name:''}).name:'')+' ('+visAccts.length+' of '+accts.length+')</div>';
     h+='<input class="drill-search" id="drillSearch_'+actualRi+'" placeholder="Filter accounts..." value="'+(drillSearch[actualRi]||'')+'">';
@@ -616,7 +795,12 @@ function renderTeam(){
 }
 
 function setTeamFilter(v){teamFilter=v;render();}
-function togDrill(ri){openDrills[ri]=!openDrills[ri];render();}
+function togDrill(ri){openDrills[ri]=!openDrills[ri];if(!openDrills[ri])delete openSkuDrills[ri];render();}
+function togSkuDrill(ri,skuid){
+  if(!openDrills[ri]){openDrills[ri]=true;}
+  openSkuDrills[ri]=(openSkuDrills[ri]===skuid)?null:skuid;
+  render();
+}
 function togSKUFil(id){skuFil=(skuFil===id)?null:id;render();}
 function clearSKUFil(){togSKUFil(null);}
 function onRepSearch(e){const v=e.target.value.toLowerCase();document.querySelectorAll('.rep-card').forEach(function(c){const n=c.querySelector('.rep-name');if(n)c.style.display=n.textContent.toLowerCase().includes(v)?'':'none';});}
@@ -717,6 +901,7 @@ document.addEventListener('click',function(e){
   else if(act==='clearSKUFil')clearSKUFil();
   else if(act==='clearRepSearch')clearRepSearch();
   else if(act==='togDrill')togDrill(Number(ri));
+  else if(act==='togSkuDrill')togSkuDrill(Number(ri),skuid);
   else if(act==='addAccountToRep')addAccountToRep(Number(ri));
   else if(act==='deleteAccountFromRep')deleteAccountFromRep(Number(ri),acid);
   else if(act==='viewMgrPhoto')viewMgrPhoto(Number(ri),acid,skuid);
