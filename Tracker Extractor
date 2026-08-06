@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Export My UDS Data</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&family=Syne:wght@700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+body{font-family:'Inter',sans-serif;background:#f8f9fb;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
+.card{background:#fff;border:1.5px solid #e8ecf0;border-radius:20px;padding:32px 24px;width:100%;max-width:420px;box-shadow:0 4px 24px rgba(0,0,0,.06);}
+.co{font-size:11px;font-weight:800;letter-spacing:.1em;text-transform:uppercase;color:#94a3b8;margin-bottom:8px;text-align:center;}
+.title{font-family:'Syne',sans-serif;font-size:24px;font-weight:800;color:#0f172a;letter-spacing:-.02em;text-align:center;margin-bottom:4px;}
+.title span{color:#2563eb;}
+.sub{font-size:13px;color:#94a3b8;text-align:center;margin-bottom:28px;line-height:1.5;}
+
+.status-card{border-radius:14px;padding:20px;margin-bottom:20px;text-align:center;}
+.status-card.found{background:#f0fdf4;border:1.5px solid #bbf7d0;}
+.status-card.notfound{background:#fef2f2;border:1.5px solid #fecaca;}
+.status-card.empty{background:#f8f9fb;border:1.5px solid #e2e8f0;}
+.status-icon{font-size:36px;margin-bottom:8px;}
+.status-title{font-size:15px;font-weight:800;color:#0f172a;margin-bottom:4px;}
+.status-detail{font-size:12px;color:#64748b;line-height:1.5;}
+.status-detail strong{color:#0f172a;}
+
+.data-preview{background:#f8f9fb;border:1.5px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:20px;display:none;}
+.data-preview.show{display:block;}
+.dp-row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:13px;}
+.dp-row:last-child{border-bottom:none;}
+.dp-label{color:#64748b;font-weight:600;}
+.dp-val{font-weight:800;color:#0f172a;}
+
+.btn-export{width:100%;padding:16px;border:none;border-radius:14px;background:#2563eb;color:#fff;font-family:'Inter',sans-serif;font-size:16px;font-weight:800;cursor:pointer;transition:background .15s;box-shadow:0 4px 0 #1d4ed8;margin-bottom:10px;}
+.btn-export:active{transform:translateY(3px);box-shadow:0 1px 0 #1d4ed8;}
+.btn-export:disabled{background:#94a3b8;box-shadow:0 4px 0 #64748b;cursor:not-allowed;}
+.btn-export.success{background:#16a34a;box-shadow:0 4px 0 #15803d;}
+
+.note{font-size:11px;color:#94a3b8;text-align:center;line-height:1.6;margin-top:12px;}
+.note strong{color:#475569;}
+
+.warning{background:#fffbeb;border:1.5px solid #fde68a;border-radius:12px;padding:14px;margin-bottom:20px;font-size:12px;color:#92400e;line-height:1.6;display:none;}
+.warning.show{display:block;}
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="co">Tyler Beverages</div>
+  <div class="title">Export <span>My Data</span></div>
+  <div class="sub">Save your current UDS data before the app update. Open this page on your device, tap Export, and save the file.</div>
+
+  <div class="warning" id="warningBox">
+    ⚠️ <strong>No data found on this device.</strong> This tool reads data saved in your browser. Make sure you're opening this page in the same browser you use for the UDS app (Safari on iPhone/iPad, or Chrome on Android).
+  </div>
+
+  <div class="status-card empty" id="statusCard">
+    <div class="status-icon">🔍</div>
+    <div class="status-title">Checking your device...</div>
+    <div class="status-detail">Looking for saved UDS data</div>
+  </div>
+
+  <div class="data-preview" id="dataPreview">
+    <div class="dp-row"><div class="dp-label">Rep</div><div class="dp-val" id="pvRep">—</div></div>
+    <div class="dp-row"><div class="dp-label">Route</div><div class="dp-val" id="pvRoute">—</div></div>
+    <div class="dp-row"><div class="dp-label">Accounts</div><div class="dp-val" id="pvAccts">—</div></div>
+    <div class="dp-row"><div class="dp-label">SKUs tracked</div><div class="dp-val" id="pvSkus">—</div></div>
+    <div class="dp-row"><div class="dp-label">Placements</div><div class="dp-val" id="pvPlacements">—</div></div>
+    <div class="dp-row"><div class="dp-label">Notes</div><div class="dp-val" id="pvNotes">—</div></div>
+    <div class="dp-row"><div class="dp-label">Photos</div><div class="dp-val" id="pvPhotos">—</div></div>
+  </div>
+
+  <button class="btn-export" id="btnExport" disabled>⬇ Export My Data</button>
+
+  <div class="note" id="noteArea">
+    After exporting — <strong>email the file to yourself</strong> or save it to iCloud/Google Drive. When the new app is ready, open it, tap ⚙, then <strong>Import JSON</strong> to restore everything.
+  </div>
+</div>
+
+<script>
+function readData(){
+  try{
+    const rawAccts=localStorage.getItem('uds_accts_v5');
+    const rawSkus=localStorage.getItem('uds_skus_v5');
+    const rawMeta=localStorage.getItem('uds_meta_v5');
+
+    // Also try older key formats in case they're on an older version
+    const rawAcctsOld=localStorage.getItem('uds_accts_v4')||localStorage.getItem('uds_accts_v3')||localStorage.getItem('uds_accts_v2');
+    const rawSkusOld=localStorage.getItem('uds_skus_v4')||localStorage.getItem('uds_skus_v3')||localStorage.getItem('uds_innos_v2');
+    const rawMetaOld=localStorage.getItem('uds_meta_v4')||localStorage.getItem('uds_meta_v3');
+
+    const accts=rawAccts?JSON.parse(rawAccts):(rawAcctsOld?JSON.parse(rawAcctsOld):null);
+    const skus=rawSkus?JSON.parse(rawSkus):(rawSkusOld?JSON.parse(rawSkusOld):null);
+    const meta=rawMeta?JSON.parse(rawMeta):(rawMetaOld?JSON.parse(rawMetaOld):null);
+
+    return{accts,skus,meta};
+  }catch(e){
+    console.error('Read error:',e);
+    return{accts:null,skus:null,meta:null};
+  }
+}
+
+function init(){
+  const {accts,skus,meta}=readData();
+  const statusCard=document.getElementById('statusCard');
+  const dataPreview=document.getElementById('dataPreview');
+  const btnExport=document.getElementById('btnExport');
+  const warningBox=document.getElementById('warningBox');
+
+  if(!accts||!accts.length){
+    statusCard.className='status-card notfound';
+    statusCard.innerHTML='<div class="status-icon">⚠️</div><div class="status-title">No data found</div><div class="status-detail">No UDS data was found in this browser.<br>Make sure you\'re using the same browser as the UDS app.</div>';
+    warningBox.classList.add('show');
+    return;
+  }
+
+  // Count stats
+  const repName=(meta&&meta.repName)||'Unknown';
+  const routeNum=(meta&&meta.routeNumber)||(meta&&meta.routeName)||'Unknown';
+  const skuList=skus||[];
+  let placements=0,notes=0,photos=0;
+  accts.forEach(function(a){
+    skuList.forEach(function(s){
+      if(a[s.id])placements++;
+      if(a['note_'+s.id])notes++;
+      if(a['photo_'+s.id])photos++;
+    });
+  });
+
+  // Show found state
+  statusCard.className='status-card found';
+  statusCard.innerHTML='<div class="status-icon">✅</div><div class="status-title">Data found!</div><div class="status-detail">Ready to export <strong>'+accts.length+' accounts</strong> with all your work.</div>';
+
+  // Show preview
+  document.getElementById('pvRep').textContent=repName;
+  document.getElementById('pvRoute').textContent=routeNum;
+  document.getElementById('pvAccts').textContent=accts.length;
+  document.getElementById('pvSkus').textContent=skuList.length;
+  document.getElementById('pvPlacements').textContent=placements+' placed';
+  document.getElementById('pvNotes').textContent=notes;
+  document.getElementById('pvPhotos').textContent=photos;
+  dataPreview.classList.add('show');
+
+  // Enable export
+  btnExport.disabled=false;
+  btnExport.addEventListener('click',function(){
+    doExport(accts,skuList,meta,repName,routeNum);
+  });
+}
+
+function doExport(accts,skus,meta,repName,routeNum){
+  const data={
+    exportedAt: new Date().toLocaleString(),
+    exportVersion: '1.0',
+    routeNumber: (meta&&meta.routeNumber)||routeNum,
+    repName: repName,
+    routeName: (meta&&meta.routeName)||'',
+    skus: skus||[],
+    accounts: accts
+  };
+
+  try{
+    const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    const safeName=repName.replace(/[^a-zA-Z0-9]/g,'_');
+    const safeRoute=String(routeNum).replace(/[^a-zA-Z0-9]/g,'_');
+    a.download='UDS_Route_'+safeRoute+'_'+safeName+'.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    const btn=document.getElementById('btnExport');
+    btn.textContent='✓ Exported! Check your downloads.';
+    btn.className='btn-export success';
+    btn.disabled=true;
+
+    document.getElementById('noteArea').innerHTML='<strong>File saved to your downloads.</strong> Email it to yourself or save to iCloud/Google Drive now. When the new app is ready, open it → tap ⚙ → <strong>Import JSON</strong>.';
+
+  }catch(e){
+    alert('Export failed. Try again or screenshot this screen instead.\n\n'+e.message);
+  }
+}
+
+// Run on load
+init();
+</script>
+</body>
+</html>
