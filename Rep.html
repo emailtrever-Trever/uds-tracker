@@ -442,6 +442,32 @@ const DSKU=[
   {id:'aw_root_beer',name:'A&W Root Beer Float',short:'A&W Float',color:'#92400e'},
 ];
 
+const DAYS=['Mon','Tue','Wed','Thu','Fri'];
+const DAY_COLORS={Mon:'#2563eb',Tue:'#7c3aed',Wed:'#059669',Thu:'#d97706',Fri:'#dc2626'};
+const DAY_SHADOWS={Mon:'#1d4ed8',Tue:'#5b21b6',Wed:'#047857',Thu:'#b45309',Fri:'#b91c1c'};
+const DAY_MAP={
+  'BESTMART #13':'Tue','BOLTON BUSINESS INC.':'Wed','BOLTON FOOD MART':'Fri',
+  'BRAKE TIME':'Mon','CURRY GROCERY':'Tue','D & N GROCERY':'Thu',
+  'EXPRESS STOP':'Thu','E-Z WAY':'Mon','FARMER DAN\'S':'Wed',
+  'FAST FUELS':'Mon','FUEL RUNNER':'Thu','HOT SPOT':'Mon',
+  'JAKE\'S FOOD MART':'Fri','JAKES MARKET & GRILL #1':'Wed',
+  'JAKES MARKET & GRILL #2':'Fri','JNJ SQUARE FOOD MART':'Wed',
+  'KATIE\'S QUICK STOP':'Tue','MASH COUNTRY MARKET':'Fri','METRO FOOD MART':'Thu',
+  'NEW SUMMERFIELD COUNTRY..':'Wed','OAKLAND GENERAL STORE':'Tue',
+  'OLD CHEROKEE TRADING POST':'Tue','PIT STOP #2':'Tue',
+  'RACE RUNNER #2':'Mon','RACE RUNNER #3':'Fri','RITE TRACK #5':'Fri',
+  'RITE TRACK #7':'Wed','RUSK STOP':'Tue','SKEETERS':'Tue',
+  'SPEED MART #1':'Thu','STOP & SHOP #2':'Mon','STOP & SHOP #4':'Tue',
+  'SUNSHINE MART':'Thu','THE HOTSPOT':'Wed','TIGER EXPRESS #6':'Fri',
+  'TRUCK-ERZ':'Fri',
+};
+function getDay(a){
+  if(a.day)return a.day;
+  const name=(a.name||'').toUpperCase();
+  const k=Object.keys(DAY_MAP).find(function(k){return name===k||name.includes(k)||k.includes(name);});
+  return k?DAY_MAP[k]:null;
+}
+
 let accts=[],skus=[],repName='',routeNumber='',routeName='',aSF=null,dMode=false,aDayF=null,curTab='route';
 
 // ── LOCAL STORAGE (cache only, never source of truth) ──────────────────────
@@ -822,7 +848,17 @@ function rList(){
   if(!routeNumber){el.innerHTML='<div class="noroute"><h3>Not signed in</h3><p>Select your route number to load your accounts.</p><button class="bpri" data-act="openSetup">Select Route</button></div>';return;}
   const list=sortA(gFil());
   if(!list.length){el.innerHTML='<div style="padding:30px 0;text-align:center;color:var(--text3);font-size:13px;">No accounts match your filter.</div>';return;}
-  el.innerHTML=list.map(function(a){return acctCard(a);}).join('');
+  // Render one card at a time to avoid massive innerHTML string crashes on iOS
+  el.innerHTML='';
+  list.forEach(function(a){
+    try{
+      const div=document.createElement('div');
+      div.innerHTML=acctCard(a);
+      if(div.firstElementChild)el.appendChild(div.firstElementChild);
+    }catch(err){
+      console.error('Card render error for '+a.name+':',err);
+    }
+  });
 }
 
 function escHtml(t){return(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
@@ -839,7 +875,14 @@ function acctCard(a){
   }).join('');
 
   const notesSection=skus.filter(s=>a['note_'+s.id]).length?'<div class="snotes">'+skus.filter(s=>a['note_'+s.id]).map(s=>'<div class="snote-row"><div class="snote-dot" style="background:'+s.color+'"></div><div class="snote-sku">'+s.short+'</div><div class="snote-preview" data-act="openNote" data-aid="'+escHtml(a.id)+'" data-sid="'+escHtml(s.id)+'">'+escHtml(a['note_'+s.id].slice(0,60))+'</div></div>').join('')+'</div>':'';
-  const photosSection=skus.filter(s=>a['photo_'+s.id]).length?'<div class="sphoto-thumbs">'+skus.filter(s=>a['photo_'+s.id]).map(s=>'<div class="sphoto-thumb-wrap"><img class="sphoto-thumb" src="'+a['photo_'+s.id]+'" data-act="viewPhoto" data-aid="'+escHtml(a.id)+'" data-sid="'+escHtml(s.id)+'"><div class="sphoto-thumb-label" style="background:'+s.color+'">'+s.short+'</div></div>').join('')+'</div>':'';
+  const photosSection=skus.filter(function(s){return a['photo_'+s.id];}).length?'<div class="sphoto-thumbs">'+skus.filter(function(s){return a['photo_'+s.id];}).map(function(s){
+    const src=a['photo_'+s.id];
+    // Only embed if it's a URL (not base64) to avoid massive DOM strings
+    const isUrl=src&&(src.startsWith('http')||src.startsWith('/'));
+    return'<div class="sphoto-thumb-wrap">'+(isUrl?'<img class="sphoto-thumb" src="'+src+'" data-act="viewPhoto" data-aid="'+escHtml(a.id)+'" data-sid="'+escHtml(s.id)+'">'
+      :'<button class="sphoto-btn has-photo" data-act="openCamera" data-aid="'+escHtml(a.id)+'" data-sid="'+escHtml(s.id)+'" title="View photo"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="7" width="18" height="13" rx="2"/><circle cx="12" cy="13" r="3"/><path d="M8 7l1.5-3h5L16 7"/></svg></button>')
+    +'<div class="sphoto-thumb-label" style="background:'+s.color+'">'+s.short+'</div></div>';
+  }).join('')+'</div>':'';
 
   return'<div class="ac'+(dMode?' dmode':'')+'"><button class="rmv" data-act="delAcct" data-aid="'+escHtml(a.id)+'">✕</button><div class="ahdr"><div><div class="aname">'+escHtml(a.name)+'</div>'+(a.addr?'<div class="aaddr">'+escHtml(a.addr)+'</div>':'')+'</div><div class="aright"><div class="dpct" style="color:'+col+'">'+p+'%</div><div class="dbw"><div class="dbf" style="width:'+p+'%;background:'+col+'"></div></div></div></div><div class="spills">'+pills+'</div>'+notesSection+photosSection+'<div class="ac-health" style="width:'+p+'%;background:'+col+'"></div></div>';
 }
