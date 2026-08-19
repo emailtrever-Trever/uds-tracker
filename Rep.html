@@ -245,6 +245,8 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
 .conf-yes{background:var(--red);color:#fff;}
 
 /* No route state */
+.aa-day-btn{height:34px;padding:0 14px;border:1.5px solid;border-radius:20px;font-family:'Inter',sans-serif;font-size:12px;font-weight:700;cursor:pointer;background:#fff;transition:all .15s;}
+.aa-day-btn.selected{color:#fff!important;}
 .noroute{margin:30px 20px;background:var(--card);border:1.5px dashed var(--card-border);border-radius:14px;padding:30px 20px;text-align:center;}
 .noroute h3{font-size:16px;font-weight:800;margin-bottom:8px;}
 .noroute p{font-size:13px;color:var(--text2);line-height:1.5;margin-bottom:16px;}
@@ -335,6 +337,16 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
     <div class="mtit">Add Account</div>
     <div class="mf"><div class="ml">Account Name</div><input class="mi" id="aaname" placeholder="e.g. FAST FUELS"></div>
     <div class="mf"><div class="ml">Address (optional)</div><input class="mi" id="aaaddr" placeholder="e.g. 100 Main St, City"></div>
+    <div class="mf">
+      <div class="ml">Service Day</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:4px;" id="aaDayPicker">
+        <button type="button" class="aa-day-btn" data-day="Mon" style="border-color:#2563eb;color:#2563eb" data-act="togAADay">Mon</button>
+        <button type="button" class="aa-day-btn" data-day="Tue" style="border-color:#7c3aed;color:#7c3aed" data-act="togAADay">Tue</button>
+        <button type="button" class="aa-day-btn" data-day="Wed" style="border-color:#059669;color:#059669" data-act="togAADay">Wed</button>
+        <button type="button" class="aa-day-btn" data-day="Thu" style="border-color:#d97706;color:#d97706" data-act="togAADay">Thu</button>
+        <button type="button" class="aa-day-btn" data-day="Fri" style="border-color:#dc2626;color:#dc2626" data-act="togAADay">Fri</button>
+      </div>
+    </div>
     <div class="mbtnr">
       <button class="mbtn mcanc" data-act="closeM" data-id="mAA">Cancel</button>
       <button class="mbtn mconf" data-act="confAA">Add Account</button>
@@ -398,6 +410,9 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
 </div>
 
 <script>
+// ── NEW DATA LAYER — drop-in replacement for Rep.html JS ──────────────────
+// Reads from normalized Supabase tables. UI unchanged.
+
 const SB_URL='https://alwhrpzozgnxfxvxgzwc.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFsd2hycHpvemdueGZ4dnhnendjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MzU0MjMsImV4cCI6MjA5NzMxMTQyM30.kGdGX10yMoZC4-qvWbt42-Klv-kwMyY8z7Rr3UzuBPg';
 
@@ -408,153 +423,330 @@ async function sbFetch(path,opts={}){
   return ct.includes('json')?res.json():null;
 }
 
-const DSKU=[
-  {id:'snapple_rasp',name:'Snapple Raspberry',short:'Snapple Rasp',color:'#e63946'},
-  {id:'bloom_summer',name:'Bloom Summer Blast',short:'Bloom Summer',color:'#2563eb'},
-  {id:'ghost_stripes',name:'Ghost Stripes',short:'Ghost Stripes',color:'#7c3aed'},
-  {id:'ghost_7up',name:'Ghost 7UP',short:'Ghost 7UP',color:'#0d9488'},
-  {id:'c4_pink_lem',name:'C4 Pink Lemonade',short:'C4 Pink Lem',color:'#db2777'},
-];
-const REP_COLORS=['#c1121f','#2563eb','#7c3aed','#0d9488','#d97706','#475569','#be185d','#0891b2'];
-const TEAM_ROSTER=[
-  {name:'Brandon Corley',team:"Jared's Team"},
-  {name:'Leobardo Gaona',team:"Jared's Team"},
-  {name:'Samuel William',team:"Jared's Team"},
-  {name:'Trever Howard',team:"Jared's Team"},
-  {name:'James Moore',team:"David's Team"},
-  {name:'MJ Grier',team:"David's Team"},
-  {name:'Samuel French',team:"David's Team"},
-  {name:'Victor McDonal',team:"David's Team"},
-];
-let accts=[],skus=[],repName='',routeName='',aSF=null,dMode=false,aDayF=null,curTab='route';
-
-const DAY_MAP={
-  'BESTMART #13':'Tue','BOLTON BUSINESS INC.':'Wed','BOLTON FOOD MART':'Fri',
-  'BRAKE TIME':'Mon','CURRY GROCERY':'Tue','D & N GROCERY':'Thu',
-  'EXPRESS STOP':'Thu','E-Z WAY':'Mon','FARMER DAN\'S':'Wed',
-  'FAST FUELS':'Mon','FUEL RUNNER':'Thu','HOT SPOT':'Mon',
-  'HUGGY BEAR FOOD MART':'Wed','JAKE\'S FOOD MART':'Fri','JAKES MARKET & GRILL #1':'Wed',
-  'JAKES MARKET & GRILL #2':'Fri','JNJ SQUARE FOOD MART':'Wed',
-  'KATIE\'S QUICK STOP':'Tue','MASH COUNTRY MARKET':'Fri','METRO FOOD MART':'Thu',
-  'NEW SUMMERFIELD COUNTRY..':'Wed','OAKLAND GENERAL STORE':'Tue',
-  'OLD CHEROKEE TRADING POST':'Tue','PIT STOP #2':'Tue',
-  'RACE RUNNER #2':'Mon','RACE RUNNER #3':'Fri','RITE TRACK #5':'Fri',
-  'RITE TRACK #7':'Wed','RUSK STOP':'Tue','SKEETERS':'Tue',
-  'SPEED MART #1':'Thu','STOP & SHOP #2':'Mon','STOP & SHOP #4':'Tue',
-  'SUNSHINE MART':'Thu','SUPER FOOD MART #16':'Mon','THE HOTSPOT':'Wed',
-  'TIGER EXPRESS #6':'Fri','TRUCK-ERZ':'Fri',
-};
-const DAYS=['Mon','Tue','Wed','Thu','Fri'];
-const DAY_COLORS={Mon:'#2563eb',Tue:'#7c3aed',Wed:'#059669',Thu:'#d97706',Fri:'#dc2626'};
-const DAY_SHADOWS={Mon:'#1d4ed8',Tue:'#5b21b6',Wed:'#047857',Thu:'#b45309',Fri:'#b91c1c'};
-
-function getDay(a){
-  if(a.day)return a.day;
-  const k=Object.keys(DAY_MAP).find(k=>a.name.toUpperCase().includes(k)||k.includes(a.name.toUpperCase()));
-  return k?DAY_MAP[k]:null;
+// Upload a file to Supabase Storage, return public URL
+async function sbUploadPhoto(path, blob){
+  const res=await fetch(SB_URL+'/storage/v1/object/uds-photos/'+path,{
+    method:'POST',
+    headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'image/jpeg','x-upsert':'true'},
+    body:blob
+  });
+  if(!res.ok){const t=await res.text();throw new Error('Storage upload failed: '+t);}
+  return SB_URL+'/storage/v1/object/public/uds-photos/'+path;
 }
 
+// Fallback SKUs if Supabase unreachable on first open
+const DSKU=[
+  {id:'c4_arctic_frost',name:'C4 Arctic Frost Ultimate',short:'C4 Arctic',color:'#0ea5e9'},
+  {id:'c4_fruit_punch',name:'C4 Fruit Punch Ultimate',short:'C4 Fruit',color:'#dc2626'},
+  {id:'c4_pink_lemonade',name:'C4 Pink Lemonade',short:'C4 Pink',color:'#db2777'},
+  {id:'aw_root_beer',name:'A&W Root Beer Float',short:'A&W Float',color:'#92400e'},
+];
+
+let accts=[],skus=[],repName='',routeNumber='',routeName='',aSF=null,dMode=false,aDayF=null,curTab='route';
+
+// ── LOCAL STORAGE (cache only, never source of truth) ──────────────────────
 function saveLocal(){
-  localStorage.setItem('uds_accts_v5',JSON.stringify(accts));
-  localStorage.setItem('uds_skus_v5',JSON.stringify(skus));
-  localStorage.setItem('uds_meta_v5',JSON.stringify({repName,routeName}));
-  setStatus('saved','SAVED');
+  try{
+    localStorage.setItem('uds_accts_v5',JSON.stringify(accts));
+    localStorage.setItem('uds_skus_v5',JSON.stringify(skus));
+    localStorage.setItem('uds_meta_v5',JSON.stringify({repName,routeNumber,routeName}));
+    setStatus('saved','SAVED');
+  }catch(err){
+    setStatus('error','STORAGE FULL — SYNC NOW');
+    console.error('localStorage full:',err);
+  }
 }
 function loadLocal(){
-  const a=localStorage.getItem('uds_accts_v5'),s=localStorage.getItem('uds_skus_v5'),m=localStorage.getItem('uds_meta_v5');
-  if(a)accts=JSON.parse(a);
-  if(s)skus=JSON.parse(s);else skus=JSON.parse(JSON.stringify(DSKU));
-  if(m){const x=JSON.parse(m);repName=x.repName||'';routeName=x.routeName||'';}
-  accts.forEach(a=>skus.forEach(s=>{if(!(s.id in a))a[s.id]=false;}));
+  try{
+    const a=localStorage.getItem('uds_accts_v5');
+    const s=localStorage.getItem('uds_skus_v5');
+    const m=localStorage.getItem('uds_meta_v5');
+    if(a)accts=JSON.parse(a);
+    if(s)skus=JSON.parse(s);else skus=JSON.parse(JSON.stringify(DSKU));
+    if(m){const x=JSON.parse(m);repName=x.repName||'';routeNumber=x.routeNumber||'';routeName=x.routeName||'';}
+    // Ensure all accounts have all SKU keys
+    accts.forEach(function(a){skus.forEach(function(s){if(!(s.id in a))a[s.id]=false;});});
+  }catch(e){console.error('loadLocal error:',e);}
 }
 
 function setStatus(type,text){
   const b=document.getElementById('statusBadge');
   b.className='status-badge '+type;b.textContent=text;
-  if(type==='saved'||type==='synced'){clearTimeout(b._t);b._t=setTimeout(()=>{b.className='status-badge';b.textContent='READY';},2000);}
+  if(type==='saved'||type==='synced'){
+    clearTimeout(b._t);
+    b._t=setTimeout(function(){b.className='status-badge';b.textContent='READY';},2500);
+  }
 }
 
-function repColorFor(name){const idx=TEAM_ROSTER.findIndex(r=>r.name===name);return REP_COLORS[idx>=0?idx%REP_COLORS.length:0];}
-function repInitials(n){return(n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
-
-function showWhoAmI(){
+// ── WHO ARE YOU — reads routes from Supabase ────────────────────────────────
+async function showWhoAmI(){
   const list=document.getElementById('whoamiList');
+  const loading=document.getElementById('whoamiLoading');
   list.innerHTML='';
-  TEAM_ROSTER.forEach(function(r){
-    const btn=document.createElement('button');
-    btn.className='whoami-btn';btn.type='button';
-    btn.innerHTML='<div><div class="whoami-name"></div><div class="whoami-team"></div></div><div class="whoami-arrow">→</div>';
-    btn.querySelector('.whoami-name').textContent=r.name;
-    btn.querySelector('.whoami-team').textContent=r.team;
-    btn.addEventListener('click',function(){selectUser(r.name);});
-    list.appendChild(btn);
-  });
+  loading.style.display='block';
+  loading.textContent='Loading routes...';
   document.getElementById('whoamiBk').classList.remove('hide');
+
+  try{
+    const rows=await sbFetch('/rest/v1/uds_routes?select=route_number,rep_name,team&order=sort_order',{headers:{'Prefer':''}});
+    loading.style.display='none';
+    (rows||[]).forEach(function(r){
+      const btn=document.createElement('button');
+      btn.className='whoami-btn';btn.type='button';
+      const displayName=r.rep_name||'Vacant';
+      btn.innerHTML='<div><div class="whoami-name">Route '+r.route_number+'</div><div class="whoami-team">'+escHtml(displayName)+' · '+escHtml(r.team||'')+'</div></div><div class="whoami-arrow">→</div>';
+      btn.addEventListener('click',function(){selectRoute(r.route_number);});
+      list.appendChild(btn);
+    });
+  }catch(e){
+    loading.textContent='Could not load routes. Check connection.';
+    console.error('showWhoAmI error:',e);
+  }
 }
 function hideWhoAmI(){document.getElementById('whoamiBk').classList.add('hide');}
 
-async function selectUser(name){
-  document.getElementById('whoamiList').style.display='none';
-  document.getElementById('whoamiLoading').style.display='block';
-  repName=name;
-  const roster=TEAM_ROSTER.find(r=>r.name===name);
-  routeName=(roster&&roster.team==="Jared's Team")?'Jared Young Team':'David Ferrell Team';
+// ── SELECT ROUTE — pulls full state from Supabase ──────────────────────────
+async function selectRoute(rnum){
+  const list=document.getElementById('whoamiList');
+  const loading=document.getElementById('whoamiLoading');
+  list.style.display='none';
+  loading.style.display='block';
+  loading.textContent='Loading your data...';
+  routeNumber=rnum;
+
   try{
-    const seedRows=await sbFetch('/rest/v1/uds_rep_seed_accounts?rep_name=eq.'+encodeURIComponent(name)+'&select=accounts',{headers:{'Prefer':''}});
-    if(seedRows&&seedRows.length&&seedRows[0].accounts){
-      accts=seedRows[0].accounts.map(a=>{
-        const o={id:a.id,name:a.name,addr:a.addr||''};
-        DSKU.forEach(s=>o[s.id]=false);
-        return o;
+    // 1. Get rep name and team from uds_routes
+    const routeRows=await sbFetch('/rest/v1/uds_routes?route_number=eq.'+rnum+'&select=rep_name,team',{headers:{'Prefer':''}});
+    if(routeRows&&routeRows.length){
+      repName=routeRows[0].rep_name||'Route '+rnum;
+      routeName=routeRows[0].team||'';
+    }else{repName='Route '+rnum;routeName='';}
+
+    // 2. Pull master SKU list
+    const skuRows=await sbFetch('/rest/v1/uds_master_skus?select=*&order=sort_order',{headers:{'Prefer':''}});
+    if(skuRows&&skuRows.length){
+      skus=skuRows.map(function(r){return{id:r.id,name:r.name,short:r.short,color:r.color};});
+    }else{skus=JSON.parse(JSON.stringify(DSKU));}
+
+    // 3. Pull accounts for this route
+    const acctRows=await sbFetch('/rest/v1/uds_accounts?route_number=eq.'+rnum+'&active=eq.true&select=id,name,addr&order=name',{headers:{'Prefer':''}});
+
+    // 4. Pull distribution data for this route
+    const distRows=await sbFetch('/rest/v1/uds_distributions?route_number=eq.'+rnum+'&select=account_id,sku_id,placed,note',{headers:{'Prefer':''}});
+
+    // 5. Pull photos for this route
+    const photoRows=await sbFetch('/rest/v1/uds_photos?route_number=eq.'+rnum+'&select=account_id,sku_id,storage_url,photo_b64',{headers:{'Prefer':''}});
+
+    // Build dist and photo lookup maps
+    const distMap={};
+    (distRows||[]).forEach(function(d){
+      if(!distMap[d.account_id])distMap[d.account_id]={};
+      distMap[d.account_id][d.sku_id]={placed:d.placed,note:d.note||''};
+    });
+    const photoMap={};
+    (photoRows||[]).forEach(function(p){
+      if(!photoMap[p.account_id])photoMap[p.account_id]={};
+      photoMap[p.account_id][p.sku_id]=p.storage_url||p.photo_b64||null;
+    });
+
+    // Assemble account objects
+    if(acctRows&&acctRows.length){
+      accts=acctRows.map(function(a){
+        const obj={id:a.id,name:a.name,addr:a.addr||''};
+        skus.forEach(function(s){
+          const d=distMap[a.id]&&distMap[a.id][s.id];
+          obj[s.id]=d?d.placed:false;
+          obj['note_'+s.id]=d?d.note:'';
+          const ph=photoMap[a.id]&&photoMap[a.id][s.id];
+          if(ph)obj['photo_'+s.id]=ph;
+        });
+        return obj;
       });
-    }else{accts=[];}
+    }else{
+      // No accounts yet for this route — start empty
+      accts=[];
+    }
+
+    saveLocal();
+    hideWhoAmI();
+    list.style.display='flex';
+    loading.style.display='none';
+    render();
+    setStatus('synced','LOADED FROM CLOUD');
+
   }catch(e){
-    console.error('Could not load seed accounts',e);
-    document.getElementById('whoamiList').style.display='flex';
-    document.getElementById('whoamiLoading').style.display='none';
-    alert('Could not load your accounts. Check your connection and tap your name again.');
-    repName='';return;
+    console.error('selectRoute error:',e);
+    list.style.display='flex';
+    loading.style.display='none';
+    alert('Could not load your data. Check your connection and try again.\n\n'+e.message);
+    routeNumber='';repName='';
   }
-  skus=JSON.parse(JSON.stringify(DSKU));
-  saveLocal();hideWhoAmI();
-  document.getElementById('whoamiList').style.display='flex';
-  document.getElementById('whoamiLoading').style.display='none';
-  render();
-  setTimeout(doSync,400);
 }
 
+// ── SYNC — writes normalized rows to Supabase ───────────────────────────────
 async function doSync(){
-  if(!repName){showWhoAmI();return;}
+  if(!routeNumber){showWhoAmI();return;}
   const btn=document.getElementById('btnSync');
   btn.disabled=true;btn.textContent='Syncing...';btn.className='nav-btn sync-btn syncing';
   setStatus('syncing','SYNCING');
+
   try{
-    const masterRows=await sbFetch('/rest/v1/uds_master_skus?select=*&order=sort_order',{headers:{'Prefer':''}});
-    if(masterRows&&masterRows.length){
-      const newSkus=masterRows.map(ms=>({id:ms.id,name:ms.name,short:ms.short,color:ms.color}));
-      skus=newSkus;
-      accts.forEach(a=>{
-        skus.forEach(s=>{if(!(s.id in a))a[s.id]=false;});
-        Object.keys(a).forEach(k=>{
+    // 1. Refresh rep name (manager may have updated it)
+    const routeRows=await sbFetch('/rest/v1/uds_routes?route_number=eq.'+routeNumber+'&select=rep_name,team',{headers:{'Prefer':''}});
+    if(routeRows&&routeRows.length&&routeRows[0].rep_name){
+      repName=routeRows[0].rep_name;
+      routeName=routeRows[0].team||routeName;
+    }
+
+    // 2. Pull latest master SKUs — replace local list
+    const skuRows=await sbFetch('/rest/v1/uds_master_skus?select=*&order=sort_order',{headers:{'Prefer':''}});
+    if(skuRows&&skuRows.length){
+      const newSkus=skuRows.map(function(r){return{id:r.id,name:r.name,short:r.short,color:r.color};});
+      // Add new SKU keys to existing accounts, remove old ones
+      accts.forEach(function(a){
+        newSkus.forEach(function(s){if(!(s.id in a))a[s.id]=false;});
+        Object.keys(a).forEach(function(k){
           if(k!=='id'&&k!=='name'&&k!=='addr'&&!k.startsWith('note_')&&!k.startsWith('photo_')){
-            if(!skus.find(s=>s.id===k))delete a[k];
+            if(!newSkus.find(function(s){return s.id===k;}))delete a[k];
           }
         });
       });
+      skus=newSkus;
     }
-    const payload={rep_name:repName,route_name:routeName||'',payload:{repName,routeName,skus,accounts:accts,exportedAt:new Date().toLocaleString()}};
-    await sbFetch('/rest/v1/uds_rep_syncs?on_conflict=rep_name,route_name',{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(payload)});
-    saveLocal();setStatus('synced','SYNCED');
+
+    // 3. Upsert distributions — one row per account+sku, not a blob
+    const distRows=[];
+    accts.forEach(function(a){
+      skus.forEach(function(s){
+        distRows.push({
+          route_number:routeNumber,
+          account_id:a.id,
+          sku_id:s.id,
+          placed:a[s.id]||false,
+          note:a['note_'+s.id]||''
+        });
+      });
+    });
+
+    // Batch upsert in chunks of 100
+    for(let i=0;i<distRows.length;i+=100){
+      const chunk=distRows.slice(i,i+100);
+      await sbFetch('/rest/v1/uds_distributions?on_conflict=route_number,account_id,sku_id',{
+        method:'POST',
+        headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},
+        body:JSON.stringify(chunk)
+      });
+    }
+
+    // 4. Also keep uds_rep_syncs updated as backup/manager compatibility
+    const payload={
+      route_number:routeNumber,
+      rep_name:repName,
+      route_name:routeName||'',
+      payload:{repName,routeNumber,routeName,skus,accounts:accts,exportedAt:new Date().toLocaleString()}
+    };
+    await sbFetch('/rest/v1/uds_rep_syncs?on_conflict=route_number',{
+      method:'POST',
+      headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},
+      body:JSON.stringify(payload)
+    });
+
+    saveLocal();
+    setStatus('synced','SYNCED');
     btn.textContent='✓ Synced';btn.className='nav-btn sync-btn synced';
-    setTimeout(()=>{btn.disabled=false;btn.textContent='↑ Sync';btn.className='nav-btn sync-btn';},2500);
+    setTimeout(function(){btn.disabled=false;btn.textContent='↑ Sync';btn.className='nav-btn sync-btn';},2500);
     render();
+
   }catch(e){
     setStatus('error','SYNC FAILED');
     btn.disabled=false;btn.textContent='↑ Sync';btn.className='nav-btn sync-btn error';
-    setTimeout(()=>{btn.className='nav-btn sync-btn';},3000);
-    alert('Sync failed. Check your connection.\n\n'+e.message);
+    setTimeout(function(){btn.className='nav-btn sync-btn';},3000);
+    console.error('Sync error:',e);
+    alert('Sync failed. Your data is saved locally.\n\n'+e.message);
   }
 }
+
+// ── PHOTO HANDLING — Supabase Storage ──────────────────────────────────────
+let photoAcctId=null,photoSkuId=null;
+
+function openCamera(aid,sid){
+  const a=accts.find(function(x){return x.id===aid;});
+  if(a&&a['photo_'+sid]){viewPhoto(aid,sid);return;}
+  photoAcctId=aid;photoSkuId=sid;
+  document.getElementById('photoInput').click();
+}
+
+function handlePhotoFile(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    const img=new Image();
+    img.onload=function(){
+      // Compress: max 320px wide, 0.3 quality (~15-20KB)
+      const maxW=320,scale=Math.min(1,maxW/img.width);
+      const canvas=document.createElement('canvas');
+      canvas.width=Math.round(img.width*scale);
+      canvas.height=Math.round(img.height*scale);
+      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
+
+      // Try Storage upload first, fall back to base64
+      canvas.toBlob(async function(blob){
+        const a=accts.find(function(x){return x.id===photoAcctId;});
+        if(!a)return;
+        const ts=new Date().toLocaleString();
+
+        try{
+          // Upload to Supabase Storage
+          const path=routeNumber+'/'+photoAcctId+'/'+photoSkuId+'.jpg';
+          const url=await sbUploadPhoto(path,blob);
+          a['photo_'+photoSkuId]=url;
+          a['photo_ts_'+photoSkuId]=ts;
+
+          // Save URL to uds_photos table
+          await sbFetch('/rest/v1/uds_photos?on_conflict=route_number,account_id,sku_id',{
+            method:'POST',
+            headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},
+            body:JSON.stringify({route_number:routeNumber,account_id:photoAcctId,sku_id:photoSkuId,storage_url:url,taken_at:new Date().toISOString()})
+          });
+
+        }catch(uploadErr){
+          console.warn('Storage upload failed, using base64 fallback:',uploadErr);
+          // Fallback: store as base64 locally and in uds_photos.photo_b64
+          const b64=canvas.toDataURL('image/jpeg',0.3);
+          a['photo_'+photoSkuId]=b64;
+          a['photo_ts_'+photoSkuId]=ts;
+          try{
+            await sbFetch('/rest/v1/uds_photos?on_conflict=route_number,account_id,sku_id',{
+              method:'POST',
+              headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},
+              body:JSON.stringify({route_number:routeNumber,account_id:photoAcctId,sku_id:photoSkuId,photo_b64:b64,taken_at:new Date().toISOString()})
+            });
+          }catch(e2){console.error('Photo b64 save failed:',e2);}
+        }
+
+        try{saveLocal();}catch(err){setStatus('error','STORAGE FULL — SYNC NOW');}
+        render();
+      },'image/jpeg',0.3);
+    };
+    img.src=e.target.result;
+  };
+  reader.readAsDataURL(file);
+  input.value='';
+}
+
+// ── INIT ────────────────────────────────────────────────────────────────────
+loadLocal();
+if(routeNumber&&accts.length){
+  // Returning rep — show app immediately, refresh in background
+  render();
+  setTimeout(doSync,800);
+}else{
+  showWhoAmI();
+}
+
+// Auto-sync every 5 minutes if rep is active
+setInterval(function(){if(routeNumber&&document.visibilityState==='visible')doSync();},300000);
+
 
 // ── TAB SWITCHING ──
 function showTab(id){
@@ -569,7 +761,7 @@ function showTab(id){
 // ── RENDER ──
 function render(){
   const rt=document.getElementById('repChipTxt');
-  if(repName)rt.textContent=repName+(routeName?' · '+routeName:'');
+  if(repName)rt.textContent=repName+(routeNumber?' · Route '+routeNumber:'');
   rStats();rDayRow();rDelPills();rList();
   if(curTab==='stats')renderStats();
 }
@@ -627,7 +819,7 @@ function rDelPills(){
 
 function rList(){
   const el=document.getElementById('mc');
-  if(!repName){el.innerHTML='<div class="noroute"><h3>Not signed in</h3><p>Select your name to load your accounts.</p><button class="bpri" data-act="openSetup">Sign In</button></div>';return;}
+  if(!routeNumber){el.innerHTML='<div class="noroute"><h3>Not signed in</h3><p>Select your route number to load your accounts.</p><button class="bpri" data-act="openSetup">Select Route</button></div>';return;}
   const list=sortA(gFil());
   if(!list.length){el.innerHTML='<div style="padding:30px 0;text-align:center;color:var(--text3);font-size:13px;">No accounts match your filter.</div>';return;}
   el.innerHTML='';
@@ -663,7 +855,7 @@ function renderStats(){
     document.getElementById('statsKpiRow').innerHTML='<div style="color:var(--text3);font-size:13px;">No data yet — sync first.</div>';
     return;
   }
-  document.getElementById('statsRepLabel').textContent=repName+' · '+routeName;
+  document.getElementById('statsRepLabel').textContent=repName+(routeNumber?' · Route '+routeNumber:'');
   const tot=accts.length;
   const ov=Math.round(accts.reduce((s,a)=>s+dp(a),0)/tot);
   const full=accts.filter(a=>dp(a)===100).length;
@@ -724,16 +916,62 @@ function doReset(){
   showWhoAmI();
 }
 
-function openAA(){document.getElementById('aaname').value='';document.getElementById('aaaddr').value='';document.getElementById('mAA').classList.add('open');setTimeout(()=>document.getElementById('aaname').focus(),200);}
+let aaDaySelected=null;
+function openAA(){
+  document.getElementById('aaname').value='';
+  document.getElementById('aaaddr').value='';
+  aaDaySelected=null;
+  document.querySelectorAll('.aa-day-btn').forEach(function(b){b.classList.remove('selected');b.style.background='#fff';});
+  document.getElementById('mAA').classList.add('open');
+  setTimeout(function(){document.getElementById('aaname').focus();},200);
+}
+function togAADay(day){
+  aaDaySelected=(aaDaySelected===day)?null:day;
+  const DAY_BG={Mon:'#2563eb',Tue:'#7c3aed',Wed:'#059669',Thu:'#d97706',Fri:'#dc2626'};
+  document.querySelectorAll('.aa-day-btn').forEach(function(b){
+    const isSel=b.getAttribute('data-day')===aaDaySelected;
+    b.classList.toggle('selected',isSel);
+    b.style.background=isSel?DAY_BG[b.getAttribute('data-day')]:'#fff';
+  });
+}
 function confAA(){
   const name=document.getElementById('aaname').value.trim();if(!name)return;
   const addr=document.getElementById('aaaddr').value.trim();
   const o={id:name.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_]/g,'')+Date.now(),name,addr};
-  skus.forEach(s=>o[s.id]=false);
+  if(aaDaySelected)o.day=aaDaySelected;
+  skus.forEach(function(s){o[s.id]=false;});
   accts.push(o);saveLocal();render();closeM('mAA');
 }
+function exportJSON(){
+  if(!routeNumber){alert('No route loaded — select your route first.');return;}
+  const data={exportedAt:new Date().toLocaleString(),routeNumber,repName,routeName,skus,accounts:accts};
+  const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='Route_'+routeNumber+'_'+repName.replace(/\s+/g,'_')+'.json';a.click();
+  URL.revokeObjectURL(url);setStatus('saved','EXPORTED');
+}
+function triggerImport(){document.getElementById('importInput').click();}
+function handleImportFile(input){
+  const file=input.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!data.accounts||!Array.isArray(data.accounts)){alert('Invalid file.');return;}
+      accts=data.accounts;
+      if(data.skus&&data.skus.length)skus=data.skus;
+      if(data.routeNumber)routeNumber=data.routeNumber;
+      if(data.repName)repName=data.repName;
+      if(data.routeName)routeName=data.routeName;
+      saveLocal();render();closeM('mSU');
+      setStatus('synced','IMPORTED — tap Sync');
+    }catch(err){alert('Could not read file.\n\n'+err.message);}
+  };
+  reader.readAsText(file);input.value='';
+}
 function openSetup(){document.getElementById('mSU').classList.add('open');}
-function confSwitchUser(){closeM('mSU');localStorage.removeItem('uds_accts_v5');localStorage.removeItem('uds_skus_v5');localStorage.removeItem('uds_meta_v5');repName='';routeName='';accts=[];skus=JSON.parse(JSON.stringify(DSKU));showWhoAmI();}
+function confSwitchUser(){closeM('mSU');localStorage.removeItem('uds_accts_v5');localStorage.removeItem('uds_skus_v5');localStorage.removeItem('uds_meta_v5');repName='';routeNumber='';routeName='';accts=[];skus=JSON.parse(JSON.stringify(DSKU));showWhoAmI();}
 
 let noteAcctId=null,noteSkuId=null;
 function openNote(aid,sid){
@@ -758,33 +996,8 @@ function clearNote(){
   delete a['note_'+noteSkuId];saveLocal();render();closeM('mNote');
 }
 
-let photoAcctId=null,photoSkuId=null;
-function openCamera(aid,sid){
-  const a=accts.find(x=>x.id===aid);
-  if(a&&a['photo_'+sid]){viewPhoto(aid,sid);return;}
-  photoAcctId=aid;photoSkuId=sid;
-  document.getElementById('photoInput').click();
-}
-function handlePhotoFile(input){
-  const file=input.files[0];if(!file)return;
-  const reader=new FileReader();
-  reader.onload=function(e){
-    const img=new Image();
-    img.onload=function(){
-      const maxW=480,scale=Math.min(1,maxW/img.width);
-      const canvas=document.createElement('canvas');
-      canvas.width=Math.round(img.width*scale);canvas.height=Math.round(img.height*scale);
-      canvas.getContext('2d').drawImage(img,0,0,canvas.width,canvas.height);
-      const compressed=canvas.toDataURL('image/jpeg',0.5);
-      const a=accts.find(x=>x.id===photoAcctId);
-      if(a){a['photo_'+photoSkuId]=compressed;a['photo_ts_'+photoSkuId]=new Date().toLocaleString();saveLocal();render();}
-    };
-    img.src=e.target.result;
-  };
-  reader.readAsDataURL(file);input.value='';
-}
 function viewPhoto(aid,sid){
-  const a=accts.find(x=>x.id===aid),s=skus.find(x=>x.id===sid);
+  const a=accts.find(function(x){return x.id===aid;}),s=skus.find(function(x){return x.id===sid;});
   if(!a||!s||!a['photo_'+sid])return;
   photoAcctId=aid;photoSkuId=sid;
   document.getElementById('photoViewerImg').src=a['photo_'+sid];
@@ -792,10 +1005,10 @@ function viewPhoto(aid,sid){
   document.getElementById('photoViewerSub').textContent=(a['photo_ts_'+sid]?'Taken '+a['photo_ts_'+sid]:'')+(a[sid]?' · Placed':' · Not yet placed');
   document.getElementById('photoViewerBk').classList.add('open');
 }
-function retakePhoto(){closePhotoViewer();document.getElementById('photoInput').click();}
+function retakePhoto(){closePhotoViewer();photoAcctId=photoAcctId;photoSkuId=photoSkuId;document.getElementById('photoInput').click();}
 function deletePhoto(){
   if(!confirm('Delete this photo?'))return;
-  const a=accts.find(x=>x.id===photoAcctId);
+  const a=accts.find(function(x){return x.id===photoAcctId;});
   if(a){delete a['photo_'+photoSkuId];delete a['photo_ts_'+photoSkuId];saveLocal();render();}
   closePhotoViewer();
 }
@@ -830,9 +1043,12 @@ document.addEventListener('click',function(e){
   else if(act==='clearSearch')clearSearch();
   else if(act==='togDel')togDel();
   else if(act==='openAA')openAA();
+  else if(act==='togAADay')togAADay(el.getAttribute('data-day'));
   else if(act==='doReset')doReset();
   else if(act==='doSync')doSync();
   else if(act==='openSetup')openSetup();
+  else if(act==='exportJSON')exportJSON();
+  else if(act==='triggerImport')triggerImport();
   else if(act==='confAA')confAA();
   else if(act==='confSwitchUser')confSwitchUser();
   else if(act==='clearNote')clearNote();
@@ -844,6 +1060,7 @@ document.addEventListener('click',function(e){
 
 document.getElementById('si').addEventListener('input',onSearchInput);
 document.getElementById('photoInput').addEventListener('change',function(){handlePhotoFile(this);});
+document.getElementById('importInput').addEventListener('change',function(){handleImportFile(this);});
 
 loadLocal();
 if(repName&&accts.length){render();}else{showWhoAmI();}
