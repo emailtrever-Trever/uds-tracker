@@ -361,121 +361,269 @@ body{background:var(--bg);font-family:'Inter',sans-serif;color:var(--text);min-h
 </div>
 
 <script>
-const SB_URL = 'https://alwhrpzozgnxfxvxgzwc.supabase.co';
-const SB_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFsd2hycHpvemdueGZ4dnhnendjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MzU0MjMsImV4cCI6MjA5NzMxMTQyM30.kGdGX10yMoZC4-qvWbt42-Klv-kwMyY8z7Rr3UzuBPg';
+// ── MANAGER DATA LAYER — normalized tables, fully fluid org ─────────────────
 
-const REP_COLORS=['#c1121f','#2563eb','#7c3aed','#0d9488','#d97706','#475569','#be185d','#0891b2','#15803d','#9333ea'];
-
-const SUPERVISOR_MAP = {
-  'brandon corley': 'Jared Young',
-  'leobardo gaona': 'Jared Young',
-  'samuel william': 'Jared Young',
-  'trever howard': 'Jared Young',
-  'james moore': 'David Ferrell',
-  'mj grier': 'David Ferrell',
-  'samuel french': 'David Ferrell',
-  'victor mcdonal': 'David Ferrell',
-};
-function getSupervisor(repName){
-  const key=(repName||'').toLowerCase().trim();
-  return SUPERVISOR_MAP[key] || 'Unassigned';
-}
-
-let reps=[], masterSKUs=[], curView='team', skuFil=null, openDrills={}, openSkuDrills={}, teamFilter='all', drillSearch={};
+const SB_URL='https://alwhrpzozgnxfxvxgzwc.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImFsd2hycHpvemdueGZ4dnhnendjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODE3MzU0MjMsImV4cCI6MjA5NzMxMTQyM30.kGdGX10yMoZC4-qvWbt42-Klv-kwMyY8z7Rr3UzuBPg';
 
 async function sbFetch(path,opts={}){
-  const res=await fetch(SB_URL+path,{headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal',...(opts.headers||{})},method:opts.method||'GET',body:opts.body});
+  const res=await fetch(SB_URL+path,{
+    headers:{'apikey':SB_KEY,'Authorization':'Bearer '+SB_KEY,'Content-Type':'application/json','Prefer':'return=minimal',...(opts.headers||{})},
+    method:opts.method||'GET',body:opts.body
+  });
   if(!res.ok){const t=await res.text();throw new Error(t);}
   const ct=res.headers.get('content-type')||'';
   return ct.includes('json')?res.json():null;
 }
 
-function saveMeta(){localStorage.setItem('uds_mgr_skus_v2',JSON.stringify(masterSKUs));}
+// State
+let reps=[], masterSKUs=[], routes=[], orgManagers=[], curView='team';
+let skuFil=null, openDrills={}, openSkuDrills={}, teamFilter='all', drillSearch={};
+
+function saveMeta(){
+  try{localStorage.setItem('uds_mgr_skus_v2',JSON.stringify(masterSKUs));}catch(e){}
+}
 function loadMeta(){masterSKUs=[];}
 
+// ── LOAD FROM DB — normalized tables ────────────────────────────────────────
 async function loadFromDB(){
   const badge=document.getElementById('syncBadge');
   badge.className='sync-badge loading';badge.innerHTML='<span class="sync-dot"></span>Loading...';
+
   try{
+    // 1. Pull org chart — builds dynamic team tabs
+    const orgRows=await sbFetch('/rest/v1/uds_org?active=eq.true&order=level,name',{headers:{'Prefer':''}});
+    if(orgRows&&orgRows.length){
+      // Extract sales managers (level 3) for team filter tabs
+      orgManagers=orgRows.filter(function(o){return o.level===3&&o.title&&o.title.toLowerCase().includes('manager');});
+    }
+
+    // 2. Pull master SKUs
     const skuRows=await sbFetch('/rest/v1/uds_master_skus?select=*&order=sort_order',{headers:{'Prefer':''}});
     if(skuRows&&skuRows.length){
       masterSKUs=skuRows.map(function(r){return{id:r.id,name:r.name,short:r.short,color:r.color};});
       saveMeta();
     }
-    const rows=await sbFetch('/rest/v1/uds_rep_syncs?select=*&order=synced_at.desc',{headers:{'Prefer':''}});
-    const seen=new Set();
-    reps=[];
-    (rows||[]).forEach(r=>{
-      const key=r.rep_name+'|'+r.route_name;
-      if(!seen.has(key)){seen.add(key);reps.push({...r.payload,syncedAt:r.synced_at,_repName:r.rep_name,_routeName:r.route_name});}
+
+    // 3. Pull routes with rep names
+    const routeRows=await sbFetch('/rest/v1/uds_routes?select=*&order=sort_order',{headers:{'Prefer':''}});
+    if(routeRows)routes=routeRows;
+
+    // 4. Pull accounts grouped by route
+    const acctRows=await sbFetch('/rest/v1/uds_accounts?active=eq.true&select=id,name,addr,route_number&order=name',{headers:{'Prefer':''}});
+
+    // 5. Pull ALL distributions
+    const distRows=await sbFetch('/rest/v1/uds_distributions?select=route_number,account_id,sku_id,placed,note',{headers:{'Prefer':''}});
+
+    // 6. Pull ALL photos
+    const photoRows=await sbFetch('/rest/v1/uds_photos?select=route_number,account_id,sku_id,storage_url,photo_b64',{headers:{'Prefer':''}});
+
+    // Build lookup maps
+    const distMap={};
+    (distRows||[]).forEach(function(d){
+      if(!distMap[d.route_number])distMap[d.route_number]={};
+      if(!distMap[d.route_number][d.account_id])distMap[d.route_number][d.account_id]={};
+      distMap[d.route_number][d.account_id][d.sku_id]={placed:d.placed,note:d.note||''};
     });
+    const photoMap={};
+    (photoRows||[]).forEach(function(p){
+      if(!photoMap[p.route_number])photoMap[p.route_number]={};
+      if(!photoMap[p.route_number][p.account_id])photoMap[p.route_number][p.account_id]={};
+      photoMap[p.route_number][p.account_id][p.sku_id]=p.storage_url||p.photo_b64||null;
+    });
+
+    // Assemble reps from routes + accounts + distributions + photos
+    reps=[];
+    routes.forEach(function(route){
+      // Get accounts for this route
+      const routeAccts=(acctRows||[]).filter(function(a){return a.route_number===route.route_number;});
+      if(!routeAccts.length)return; // skip routes with no accounts
+
+      const routeDist=distMap[route.route_number]||{};
+      const routePhotos=photoMap[route.route_number]||{};
+
+      const accounts=routeAccts.map(function(a){
+        const obj={id:a.id,name:a.name,addr:a.addr||''};
+        masterSKUs.forEach(function(s){
+          const d=routeDist[a.id]&&routeDist[a.id][s.id];
+          obj[s.id]=d?d.placed:false;
+          if(d&&d.note)obj['note_'+s.id]=d.note;
+          const ph=routePhotos[a.id]&&routePhotos[a.id][s.id];
+          if(ph)obj['photo_'+s.id]=ph;
+        });
+        return obj;
+      });
+
+      // Find which org manager this route belongs to
+      const orgRep=orgRows&&orgRows.find(function(o){
+        return o.level===4&&o.name.toLowerCase()===route.rep_name.toLowerCase();
+      });
+      const teamName=route.team||'';
+
+      reps.push({
+        repName:route.rep_name||'Route '+route.route_number,
+        routeName:teamName,
+        routeNumber:route.route_number,
+        accounts:accounts,
+        skus:masterSKUs,
+        _repName:route.rep_name||'Route '+route.route_number,
+        _routeName:teamName,
+        _routeNumber:route.route_number,
+        _team:teamName,
+        syncedAt:null
+      });
+    });
+
+    // Also check uds_rep_syncs for last-sync timestamps
+    const syncRows=await sbFetch('/rest/v1/uds_rep_syncs?select=route_number,synced_at&order=synced_at.desc',{headers:{'Prefer':''}});
+    if(syncRows){
+      syncRows.forEach(function(sr){
+        const rep=reps.find(function(r){return r._routeNumber===sr.route_number;});
+        if(rep)rep.syncedAt=sr.synced_at;
+      });
+    }
+
     badge.className='sync-badge ok';badge.innerHTML='<span class="sync-dot"></span>LIVE';
-    setTimeout(()=>{badge.className='sync-badge';badge.innerHTML='<span class="sync-dot"></span>Refresh';},3000);
+    setTimeout(function(){badge.className='sync-badge';badge.innerHTML='<span class="sync-dot"></span>Refresh';},3000);
     render();
+
   }catch(e){
     badge.className='sync-badge err';badge.innerHTML='<span class="sync-dot"></span>ERROR';
-    setTimeout(()=>{badge.className='sync-badge';badge.innerHTML='<span class="sync-dot"></span>Retry';},3000);
-    console.error(e);
+    setTimeout(function(){badge.className='sync-badge';badge.innerHTML='<span class="sync-dot"></span>Retry';},3000);
+    console.error('loadFromDB error:',e);
     render();
   }
 }
 
+// ── PUSH SKUs TO DB ──────────────────────────────────────────────────────────
 async function pushSKUsToDB(){
   try{
-    for(const s of masterSKUs){
-      await sbFetch('/rest/v1/uds_master_skus?on_conflict=id',{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify({id:s.id,name:s.name,short:s.short,color:s.color,sort_order:masterSKUs.indexOf(s)})});
+    for(let i=0;i<masterSKUs.length;i++){
+      const s=masterSKUs[i];
+      await sbFetch('/rest/v1/uds_master_skus?on_conflict=id',{
+        method:'POST',
+        headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},
+        body:JSON.stringify({id:s.id,name:s.name,short:s.short,color:s.color,sort_order:i})
+      });
     }
-  }catch(e){console.error('SKU push failed',e);}
+  }catch(e){console.error('SKU push failed:',e);}
 }
 
+// ── PUSH ACCOUNT CHANGE — writes to uds_distributions ───────────────────────
 async function pushRepUpdate(rep){
   try{
-    const payload={rep_name:rep._repName||rep.repName, route_name:rep._routeName||rep.routeName||'', payload:{repName:rep.repName,routeName:rep.routeName,skus:rep.skus,accounts:rep.accounts,exportedAt:new Date().toLocaleString()}};
-    await sbFetch('/rest/v1/uds_rep_syncs?on_conflict=rep_name,route_name',{method:'POST',headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},body:JSON.stringify(payload)});
-  }catch(e){console.error('Rep push failed',e);alert('Could not save change to server. Check connection.');}
+    const distRows=[];
+    (rep.accounts||[]).forEach(function(a){
+      masterSKUs.forEach(function(s){
+        distRows.push({
+          route_number:rep._routeNumber||rep.routeNumber,
+          account_id:a.id,
+          sku_id:s.id,
+          placed:a[s.id]||false,
+          note:a['note_'+s.id]||''
+        });
+      });
+    });
+    // Batch upsert in chunks of 100
+    for(let i=0;i<distRows.length;i+=100){
+      const chunk=distRows.slice(i,i+100);
+      await sbFetch('/rest/v1/uds_distributions?on_conflict=route_number,account_id,sku_id',{
+        method:'POST',
+        headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},
+        body:JSON.stringify(chunk)
+      });
+    }
+    // Also update accounts table if any new accounts were added
+    const acctUpserts=(rep.accounts||[]).map(function(a){
+      return{id:a.id,name:a.name,addr:a.addr||'',route_number:rep._routeNumber||rep.routeNumber,channel:'uds'};
+    });
+    if(acctUpserts.length){
+      await sbFetch('/rest/v1/uds_accounts?on_conflict=id',{
+        method:'POST',
+        headers:{'Prefer':'resolution=merge-duplicates,return=minimal'},
+        body:JSON.stringify(acctUpserts)
+      });
+    }
+  }catch(e){
+    console.error('Rep push failed:',e);
+    alert('Could not save change to server. Check connection.');
+  }
 }
 
+// ── UPDATE REP NAME — writes to uds_routes and uds_org ──────────────────────
+async function updateRepName(routeNum,newName){
+  try{
+    await sbFetch('/rest/v1/uds_routes?route_number=eq.'+routeNum,{
+      method:'PATCH',
+      headers:{'Prefer':'return=minimal'},
+      body:JSON.stringify({rep_name:newName})
+    });
+    // Update local state
+    const route=routes.find(function(x){return x.route_number===routeNum;});
+    if(route)route.rep_name=newName;
+    const rep=reps.find(function(x){return x._routeNumber===routeNum;});
+    if(rep){rep._repName=newName;rep.repName=newName;}
+    render();
+  }catch(e){alert('Could not update rep name.\n\n'+e.message);}
+}
+
+// ── SHOW VIEW ────────────────────────────────────────────────────────────────
 function showView(v){
   curView=v;
   document.querySelectorAll('.nav-item').forEach(function(el){
-    el.classList.toggle('active', el.getAttribute('data-id')===v);
+    el.classList.toggle('active',el.getAttribute('data-id')===v);
   });
   const h=document.getElementById('pageHeadline');
   const m=document.getElementById('pageMeta');
   if(v==='team'){h.innerHTML='Team <span>Dashboard</span>';m.textContent='Universal Distribution Sheet';}
+  else if(v==='routes'){h.innerHTML='Manage <span>Routes</span>';m.textContent='Update rep names without losing any data';}
   else{h.innerHTML='SKU <span>Manager</span>';m.textContent='Control which innovations your team tracks';}
   render();
 }
-function render(){if(curView==='team')renderTeam();else renderSKUs();}
+function render(){if(curView==='team')renderTeam();else if(curView==='routes')renderRoutes();else renderSKUs();}
 
-function repColor(i){return REP_COLORS[i%REP_COLORS.length];}
-function repInitials(n){return(n||'?').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();}
-function acctDist(a){if(!masterSKUs.length)return 0;return Math.round(masterSKUs.filter(s=>a[s.id]).length/masterSKUs.length*100);}
+// ── HELPER FUNCTIONS ─────────────────────────────────────────────────────────
+function repColor(i){return['#c1121f','#2563eb','#7c3aed','#0d9488','#d97706','#475569','#be185d','#0891b2'][i%8];}
+function acctDist(a){if(!masterSKUs.length)return 0;return Math.round(masterSKUs.filter(function(s){return a[s.id];}).length/masterSKUs.length*100);}
 function repDist(rep){
   const accts=rep.accounts||[];if(!accts.length||!masterSKUs.length)return 0;
-  const ids=masterSKUs.map(s=>s.id);
-  const have=accts.reduce((sum,a)=>sum+ids.filter(id=>a[id]).length,0);
+  const ids=masterSKUs.map(function(s){return s.id;});
+  const have=accts.reduce(function(sum,a){return sum+ids.filter(function(id){return a[id];}).length;},0);
   return Math.round(have/(accts.length*ids.length)*100);
 }
 function dc(p){return p>=100?'#16a34a':p>=60?'#d97706':'#dc2626';}
-function donut(p,col,sz){sz=sz||48;const r=18,c=26,ci=2*Math.PI*r,d=ci*p/100;return'<svg viewBox="0 0 52 52" width="'+sz+'" height="'+sz+'"><circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="#e2e8f0" stroke-width="6"/><circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+col+'" stroke-width="6" stroke-linecap="round" stroke-dasharray="'+d+' '+ci+'" transform="rotate(-90 '+c+' '+c+')" style="transition:stroke-dasharray .6s"/><text x="'+c+'" y="'+(c+4)+'" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" font-weight="800" fill="#0f172a">'+p+'%</text></svg>';}
+function donut(p,col,sz){
+  sz=sz||48;const r=18,c=26,ci=2*Math.PI*r,d=ci*p/100;
+  return'<svg viewBox="0 0 52 52" width="'+sz+'" height="'+sz+'"><circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="#e2e8f0" stroke-width="6"/><circle cx="'+c+'" cy="'+c+'" r="'+r+'" fill="none" stroke="'+col+'" stroke-width="6" stroke-linecap="round" stroke-dasharray="'+d+' '+ci+'" transform="rotate(-90 '+c+' '+c+')" style="transition:stroke-dasharray .6s"/><text x="'+c+'" y="'+(c+4)+'" text-anchor="middle" font-family="JetBrains Mono,monospace" font-size="10" font-weight="800" fill="#0f172a">'+p+'%</text></svg>';
+}
 function escH(t){return(t||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
+// ── GET FILTERED REPS — driven by org data ───────────────────────────────────
 function getFilteredReps(){
-  if(teamFilter==='all') return reps;
-  return reps.filter(function(r){return getSupervisor(r.repName)===teamFilter;});
+  if(teamFilter==='all')return reps;
+  return reps.filter(function(r){return r._team===teamFilter;});
 }
 
+// ── UPDATE SIDEBAR ───────────────────────────────────────────────────────────
 function updateSidebar(){
   const list=document.getElementById('repSidebarList');
-  if(!list) return;
+  if(!list)return;
   if(!reps.length){list.innerHTML='<div style="font-size:12px;color:var(--text3);padding:8px 12px;">No reps synced yet</div>';return;}
-  list.innerHTML=reps.map(function(r,i){
+  list.innerHTML=reps.map(function(r){
     const pct=repDist(r);
     const col=pct>=80?'var(--green)':pct>=60?'var(--amber)':'var(--red)';
-    return'<div class="rep-strip"><div class="rep-strip-left"><div class="rep-strip-name">'+escH(r.repName||r._repName||'Rep '+(i+1))+'</div><div class="rep-strip-meta">'+(r.accounts||[]).length+' accounts</div></div><div class="rep-strip-pct" style="color:'+col+'">'+pct+'%</div></div>';
+    return'<div class="rep-strip"><div class="rep-strip-left"><div class="rep-strip-name">'+escH(r._repName||r.repName||'Route '+r._routeNumber)+'</div><div class="rep-strip-meta">Route '+(r._routeNumber||'—')+' · '+(r.accounts||[]).length+' accts</div></div><div class="rep-strip-pct" style="color:'+col+'">'+pct+'%</div></div>';
   }).join('');
 }
+
+// ── INIT ─────────────────────────────────────────────────────────────────────
+localStorage.removeItem('uds_mgr_skus_v2');
+loadMeta();
+render();
+loadFromDB();
+// Auto-refresh every 60 seconds
+setInterval(function(){if(document.visibilityState==='visible')loadFromDB();},60000);
+
 
 function renderTeam(){
   const root=document.getElementById('appRoot');
@@ -491,20 +639,21 @@ function renderTeam(){
   const barCol=ov>=80?'#16a34a':ov>=60?'#d97706':'#dc2626';
   const lastSync=reps.map(function(r){return r.syncedAt||r.exportedAt;}).filter(Boolean).sort().pop()||'never';
 
-  const jaredCount=reps.filter(function(r){return getSupervisor(r.repName)==='Jared Young';}).length;
-  const davidCount=reps.filter(function(r){return getSupervisor(r.repName)==='David Ferrell';}).length;
   const missing=masterSKUs.length?allAccts.reduce(function(sum,a){return sum+masterSKUs.filter(function(s){return!a[s.id];}).length;},0):0;
   const belowTarget=filteredReps.filter(function(r){return repDist(r)<60;}).length;
+  const lastSyncClean=reps.map(function(r){return r.syncedAt;}).filter(Boolean).sort().pop()||'never';
 
-  document.getElementById('pageMeta').textContent='Universal Distribution Sheet · Last sync: '+lastSync;
+  document.getElementById('pageMeta').textContent='Universal Distribution Sheet · Last sync: '+lastSyncClean;
 
   let h='';
 
-  // Team filter tabs
+  // Team filter tabs — dynamic from uds_org
   h+='<div class="team-tabs">';
   h+='<button class="team-tab'+(teamFilter==='all'?' active':'')+'" data-act="setTeamFilter" data-id="all">All Reps<span class="tt-count">('+reps.length+')</span></button>';
-  h+='<button class="team-tab'+(teamFilter==='Jared Young'?' active':'')+'" data-act="setTeamFilter" data-id="Jared Young">Jared&#39;s Team<span class="tt-count">('+jaredCount+')</span></button>';
-  h+='<button class="team-tab'+(teamFilter==='David Ferrell'?' active':'')+'" data-act="setTeamFilter" data-id="David Ferrell">David&#39;s Team<span class="tt-count">('+davidCount+')</span></button>';
+  orgManagers.forEach(function(mgr){
+    const cnt=reps.filter(function(r){return r._team===mgr.name;}).length;
+    h+='<button class="team-tab'+(teamFilter===mgr.name?' active':'')+'" data-act="setTeamFilter" data-id="'+escH(mgr.name)+'">'+escH(mgr.name.split(' ')[0])+'&#39;s Team<span class="tt-count">('+cnt+')</span></button>';
+  });
   h+='</div>';
 
   // Summary
